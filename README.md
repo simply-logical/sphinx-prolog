@@ -201,21 +201,19 @@ changes and automatically regenerates the affected pages.
 
 ## TODO ##
 
-- [ ] TODO(Kacper): highlight the paragraph marker for exercise and solution
-  boxes when hovering the mouse over the box and not just the character
+- [ ] TODO(Kacper): infoboxes need optional `ibox:my-tag` to be referenced
 
 - [ ] TODO(Kacper): exercise are referenced by `ex:xxx` and solutions by
   `sol:xxx`, but SWISH boxes use the filename without any prefix (reference
-  with `swish:...` instead) -- we need consistency (same applies to infoboxes,
-  which need `ibox:my-tag`)
+  with `swish:...` instead) -- we need consistency
 - [ ] TODO(Kacper): add a SWISH box parameter to manually include SWISH queries
-- [ ] TODO(Kacper): add SWISH queries, both inline and display
-- [ ] TODO(Kacper): add a SWISH box parameter to reference an existing query
 - [ ] TODO(Kacper): SWISH box content can append or overwrite displayed?
 - [ ] TODO(Kacper): add code syntax highlight to SWISH boxes
 
-- [ ] TODO(Kacper): some of the footnotes have messed up numbering (check
-  GitHub issues)
+- [ ] TODO(Kacper): add SWISH queries, both inline and display (ensure that
+  they are on the same page)
+- [ ] TODO(Kacper): add a SWISH box parameter to reference an existing query
+
 - [ ] TODO(Kacper): fix TODO tags
 - [ ] TODO(Kacper): hacked named paragraphs (search for `&nbsp;`) into markdown
   sections (e.g., 1.2.1) -- will show up on the right in the content

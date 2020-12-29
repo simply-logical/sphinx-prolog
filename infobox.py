@@ -13,6 +13,66 @@ from sl import VERSION
 #### Infobox directive ########################################################
 
 
+class infobox_title(nodes.title):
+    """A `docutils` node holding the **title** of Simply Logical infoboxes."""
+
+
+def visit_infobox_title_node(self, node):
+    """
+    Builds an opening HTML tag for the **title** node of the Simply Logical
+    infoboxes.
+
+    Overrides Sphinx's HTML5
+    `visit title <https://github.com/sphinx-doc/sphinx/blob/68cc0f7e94f360a2c62ebcb761f8096e04ebf07f/sphinx/writers/html5.py#L355>`_.
+    """
+    assert self.builder.name != 'singlehtml', (
+        'This function is not suitable for singlehtml builds -- '
+        'see the URL in the docstring.')
+    if not isinstance(node, infobox_title):
+        raise RuntimeError('This function should only be used to process '
+                           'an infobox title.')
+    if not isinstance(node.parent, infobox):
+        raise RuntimeError('This function should only be used to process '
+                           'an infobox title that is embedded within an '
+                           'infobox node.')
+    assert len(node.parent['ids']) == 1, (
+        'Infobox nodes need to be ided to be referenceable.')
+
+    self.visit_title(node)
+
+
+def depart_infobox_title_node(self, node):
+    """
+    Builds a closing HTML tag for the **title** node of the Simply Logical
+    infoboxes.
+
+    Overrides `Sphinx's HTML5 generator <https://github.com/sphinx-doc/sphinx/blob/68cc0f7e94f360a2c62ebcb761f8096e04ebf07f/sphinx/writers/html5.py#L362>`_.
+    """
+    if (self.permalink_text and self.builder.add_permalinks
+            and node.parent.hasattr('ids') and node.parent['ids']):
+        self.add_permalink_ref(node.parent, 'Permalink to this infobox')
+    else:
+        raise RuntimeError('Could not add a permalink to an infobox.')
+
+    self.depart_title(node)
+
+
+def visit_infobox_title_node_(self, node):
+    """
+    Builds a prefix for embedding the **title** of Simply Logical infoboxes in
+    LaTeX and raw text.
+    """
+    raise NotImplemented
+
+
+def depart_infobox_title_node_(self, node):
+    """
+    Builds a postfix for embedding the **title** of Simply Logical infoboxes in
+    LaTeX and raw text.
+    """
+    raise NotImplemented
+
+
 class infobox(nodes.Admonition, nodes.Element):
     """A `docutils` node holding Simply Logical infoboxes."""
 
@@ -84,16 +144,16 @@ class Infobox(Directive):
         infobox_content_node = infobox('\n'.join(self.content))
 
         # try to get the title -- it is a required argument
-        infobox_title = options.get('title', None)
-        if infobox_title is None:
+        infobox_title_ = options.get('title', None)
+        if infobox_title_ is None:
             raise KeyError('infobox directive: the *title* option is missing.')
-        infobox_title_node = nodes.title(infobox_title)
+        infobox_title_node = infobox_title(infobox_title_)
 
         # a hack to process the title, extract it and embed it in the title
         # node
         parsed_infobox_title = nodes.TextElement()
         self.state.nested_parse(
-            [infobox_title], 0, parsed_infobox_title)
+            [infobox_title_], 0, parsed_infobox_title)
         assert len(parsed_infobox_title.children) == 1
         for child in parsed_infobox_title.children[0]:
             infobox_title_node += child
@@ -119,6 +179,12 @@ def setup(app):
         html=(visit_infobox_node, depart_infobox_node),
         latex=(visit_infobox_node_, depart_infobox_node_),
         text=(visit_infobox_node_, depart_infobox_node_)
+    )
+    app.add_node(
+        infobox_title,
+        html=(visit_infobox_title_node, depart_infobox_title_node),
+        latex=(visit_infobox_title_node_, depart_infobox_title_node_),
+        text=(visit_infobox_title_node_, depart_infobox_title_node_)
     )
 
     # ensure the required auxiliary files are included in the Sphinx build

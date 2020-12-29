@@ -25,7 +25,7 @@ extension was particularly useful for developing the `exercise` directive.
 import os
 
 
-VERSION = '0.1'
+VERSION = '0.2'
 __version__ = VERSION
 
 
