@@ -24,7 +24,7 @@ building *information boxes*.
 An *information box* is included with the `infobox` directive:
 
 ````text
-```{infobox}
+```{infobox} ibox:4.2
 ---
 title: Title of my infobox
 ---
@@ -39,7 +39,14 @@ Content of my information box.
 
 ### Arguments, parameters and content ###
 
-The `infobox` directive has one **required** parameter:
+The `infobox` directive has one **optional** argument that specifies the
+referenceable label of this box.
+The label must be prefixed with `ibox:`.
+Then, the box can be referenced with the standard `ref` role, e.g.,
+`` {ref}`ibox:4.2` ``, which will produce a hyper-link with the title of the
+information box.
+
+Additionally, the `infobox` directive has one **required** parameter:
 
 * `title` -- specifies the title of the information box.
 
@@ -201,14 +208,11 @@ changes and automatically regenerates the affected pages.
 
 ## TODO ##
 
-- [ ] TODO(Kacper): infoboxes need optional `ibox:my-tag` to be referenced
-
 - [ ] TODO(Kacper): exercise are referenced by `ex:xxx` and solutions by
   `sol:xxx`, but SWISH boxes use the filename without any prefix (reference
   with `swish:...` instead) -- we need consistency
 - [ ] TODO(Kacper): add a SWISH box parameter to manually include SWISH queries
 - [ ] TODO(Kacper): SWISH box content can append or overwrite displayed?
-- [ ] TODO(Kacper): add code syntax highlight to SWISH boxes
 
 - [ ] TODO(Kacper): add SWISH queries, both inline and display (ensure that
   they are on the same page)

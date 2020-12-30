@@ -325,7 +325,9 @@ class Exercise(Directive):
 
         # get the user-provided label of the exercise
         label = self.arguments[0]
-        assert label.startswith('ex:')
+        assert label.startswith('ex:'), (
+            'The exercise label ({}) must start with the "ex:" prefix.'.format(
+                label))
 
         if self.content:
             content_string = '\n'.join(self.content)
@@ -532,7 +534,9 @@ class Solution(Directive):
         env = self.state.document.settings.env
 
         label = self.arguments[0]
-        assert label.startswith('ex:')
+        assert label.startswith('ex:'), (
+            'The solution label ({}) must start with the "ex:" prefix and '
+            'link to an existing exercise.'.format(label))
         sol_label = 'sol:{}'.format(label[3:])
 
         if self.content:

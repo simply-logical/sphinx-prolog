@@ -119,13 +119,13 @@ class Infobox(Directive):
     Defines the `infobox` directive for building Simply Logical infoboxes.
 
     The `infobox` directive is of the form::
-       .. infobox::
+       .. infobox:: ibox:my_label (optional)
          :title: Infobox title (required)
 
-         Infobox content.
+         Infobox content. (required)
     """
     required_arguments = 0
-    optional_arguments = 0
+    optional_arguments = 1
     final_argument_whitespace = False
     has_content = True
     option_spec = {'title': directives.unchanged}
@@ -135,13 +135,6 @@ class Infobox(Directive):
         env = self.state.document.settings.env
         # get the directive options
         options = self.options
-
-        # get a custom target node for linking with HTML ids
-        targetid = 'infobox-{:d}'.format(env.new_serialno('infobox'))
-        targetnode = nodes.target('', '', ids=[targetid])
-
-        # build an infobox node
-        infobox_content_node = infobox('\n'.join(self.content))
 
         # try to get the title -- it is a required argument
         infobox_title_ = options.get('title', None)
@@ -158,12 +151,83 @@ class Infobox(Directive):
         for child in parsed_infobox_title.children[0]:
             infobox_title_node += child
 
+        # assign id, or label and id
+        if self.arguments:
+            assert len(self.arguments) == 1, (
+                'Only one argument -- unique id -- is expected')
+            label = self.arguments[0]
+            assert label.startswith('ibox:'), (
+                'The exercise label ({}) must start with the "ibox:" '
+                'prefix.'.format(label))
+
+            # build an infobox node with a title -- which is used as the
+            # reference text (see the `assign_reference_title` function) --
+            # without any markup (`astext` method is an alternative to the
+            # `nodes.clean_astext` function)
+            infobox_content_node = infobox('\n'.join(self.content),
+                                           title=parsed_infobox_title.astext())
+
+            # see the exercise directive for non-standard node labelling
+            self.options['name'] = label
+            self.add_name(infobox_content_node)
+        else:
+            # get a custom target node for linking with HTML ids
+            targetid = 'infobox-{:d}'.format(env.new_serialno('infobox'))
+
+            # build an infobox node
+            infobox_content_node = infobox('\n'.join(self.content),
+                                           ids=[targetid])
+
         # append the title node and process the content node
         infobox_content_node += infobox_title_node
         self.state.nested_parse(
             self.content, self.content_offset, infobox_content_node)
 
-        return [targetnode, infobox_content_node]
+        return [infobox_content_node]
+
+
+def assign_reference_title(app, document):
+    """
+    Update the labels record of the standard environment to allow referencing
+    named information boxes with their titles.
+
+    This function is inspired by:
+    * `this <https://stackoverflow.com/questions/64146870/generating-labels-for-nodes-of-a-custom-directive>`_
+      StackOverflow post; and
+    * Sphinx's
+      `autosectionlabel extension <https://github.com/sphinx-doc/sphinx/blob/3.x/sphinx/ext/autosectionlabel.py#L34>`_.
+    """
+    # get the standard domain
+    domain = app.env.get_domain('std')
+
+    # go through every infobox
+    for node in document.traverse(infobox):
+        # only the labeled infoboxes have a name and can be referenced
+        if not node['names']:
+            continue
+
+        # infoboxes should only have one name that starts with 'ibox:'
+        assert len(node['names']) == 1
+        node_name = node['names'][0]
+        assert node_name.startswith('ibox:')
+
+        # every infobox has a single id
+        assert len(node['ids']) == 1
+        node_id = node['ids'][0]
+
+        # get the document name
+        docname = app.env.docname
+
+        # a named infobox should **already** be referenceable without a title
+        assert node_name in domain.anonlabels
+        assert domain.anonlabels[node_name] == (docname, node_id)
+
+        # generate the reference label for this infobox
+        assert node['title']
+        refname = node['title']
+
+        # allow this named infobox to be referenced with its title
+        domain.labels[node_name] = (docname, node_id, refname)
 
 
 #### Extension setup ##########################################################
@@ -194,5 +258,8 @@ def setup(app):
 
     # register the custom directives with Sphinx
     app.add_directive('infobox', Infobox)
+
+    # ensure that each ided infobox can be referenced by its title
+    app.connect('doctree-read', assign_reference_title)
 
     return {'version': VERSION}
