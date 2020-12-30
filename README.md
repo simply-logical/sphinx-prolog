@@ -164,6 +164,9 @@ source-text-end: 4.5.6-end
 ```
 ````
 
+Each [SWISH] box can be referenced with its name using the `ref`
+role, e.g., `` {ref}`swish:1.2.3` ``, which produces *SWISH box* hyper-link.
+
 ### Configuration parameters ###
 
 The `swish` extension uses the following [Sphinx] configuration parameters:

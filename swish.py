@@ -676,6 +676,39 @@ def analyse_swish_code(app, env, added, changed, removed):
     return changed_code_files
 
 
+def assign_reference_title(app, document):
+    """
+    Update the labels record of the standard environment to allow referencing
+    SWISH boxes.
+    (See the `infobox.assign_reference_title` function for more details.)
+    """
+    # get the standard domain
+    domain = app.env.get_domain('std')
+
+    # go through every swish box
+    for node in document.traverse(swish_box):
+        # every swish box should have exactly one name starting with 'swish:'
+        assert node['names']
+        assert len(node['names']) == 1
+        node_name = node['names'][0]
+        assert node_name.startswith('swish:')
+
+        # every swish box has a single id
+        assert len(node['ids']) == 1
+        node_id = node['ids'][0]
+
+        # get the document name
+        docname = app.env.docname
+
+        # every swish box should **already** be referenceable without a title
+        assert node_name in domain.anonlabels
+        assert domain.anonlabels[node_name] == (docname, node_id)
+
+        # allow this swish box to be referenced with the default 'SWISH box'
+        # stub
+        domain.labels[node_name] = (docname, node_id, 'SWISH box')
+
+
 #### Extension setup ##########################################################
 
 
@@ -716,6 +749,7 @@ def setup(app):
     # connect custom hooks to the Sphinx build process
     app.connect('env-purge-doc', purge_swish_detect)
     app.connect('env-merge-info', merge_swish_detect)
+    app.connect('doctree-read', assign_reference_title)
     app.connect('doctree-resolved', inject_swish_detect)
     app.connect('env-get-outdated', analyse_swish_code)
 
