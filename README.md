@@ -155,9 +155,9 @@ building *interactive [SWI Prolog] boxes* executed directly in the browser with
 A *[SWISH] box* is included with the `swish` directive:
 
 ````text
-```{swish} 1.2.3
+```{swish} swish:1.2.3
 ---
-inherit-id: 4.5.6, 4.5.7, 4.5.8
+inherit-id: swish:4.5.6 swish:4.5.7 swish:4.5.8
 source-text-start: 4.5.6-start
 source-text-end: 4.5.6-end
 ---
@@ -178,24 +178,27 @@ The `swish` extension uses the following [Sphinx] configuration parameters:
 
 Each [SWISH] code box has one **required** argument that
 specifies the *unique* id of this particular interactive code block.
+This id **must** start with the `swish:` prefix.
 The content of the [SWISH] box directive **must be empty** as it is pulled from
 a code file whose name is derived from the code box id and which should be
 located in the directory specified via the `sl_code_directory` configuration
 parameter.
-The code file name is expected to be the code block id with `.pl` extension.
-For example, for a code block with `my_code` id, the code file should be named
-`my_code.pl`.
+The code file name is expected to be the code block id **without** the `swish:`
+prefix and **with** the `.pl` extension.
+For example, for a code block with `swish:my_code` id, the code file should be
+named `my_code.pl`.
 The `swish` [Sphinx] extension *monitors* the code files for
 changes and automatically regenerates the affected pages.
 
 [SWISH] code blocks also have a number of **optional** parameters:
 
-* `inherit-id` -- specifies **id(s)** of code block(s) whose content will be
-  inherited into this particular [SWISH] box. The inherited code block(s)
-  **must** be placed on the same page (the same document) as the code block
-  that inherits them.
-  A [SWISH] box can inherit from a single (e.g., `inherit-id: 4.5.6`) or
-  multiple (e.g., `inherit-id: 4.5.6, 4.5.7, 4.5.8`) code blocks.
+* `inherit-id` -- specifies (space separated) **id(s)** of code block(s) whose
+  content will be inherited into this particular [SWISH] box.
+  The inherited code block(s) **must** be placed on the same page (the same
+  document) as the code block that inherits them.
+  A [SWISH] box can inherit from a single (e.g., `inherit-id: swish:4.5.6`) or
+  multiple (e.g., `inherit-id: swish:4.5.6 swish:4.5.7 swish:4.5.8`) code
+  blocks.
   (The inheritance logic is handled by the `lpn.js` JavaScript.)
 * `source-text-start` -- specifies the code **file name** without the `.pl`
   extension whose content will be (implicitly) prepended to the main code of
@@ -208,11 +211,9 @@ changes and automatically regenerates the affected pages.
 
 ## TODO ##
 
-- [ ] TODO(Kacper): exercise are referenced by `ex:xxx` and solutions by
-  `sol:xxx`, but SWISH boxes use the filename without any prefix (reference
-  with `swish:...` instead) -- we need consistency
+- [ ] TODO(Kacper): SWISH box content should overwrite file import;
+      check the inheritance not to be the file but an existing node
 - [ ] TODO(Kacper): add a SWISH box parameter to manually include SWISH queries
-- [ ] TODO(Kacper): SWISH box content can append or overwrite displayed?
 
 - [ ] TODO(Kacper): add SWISH queries, both inline and display (ensure that
   they are on the same page)

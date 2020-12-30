@@ -68,15 +68,19 @@ def visit_swish_code_node(self, node):
     # get node id
     node_ids = node.get('ids', [])
     assert len(node_ids) == 1
-    assert node_ids[0].startswith('swish.')
-    swish_id = node_ids[0][6:]
+    assert node_ids[0].startswith('swish')
+    assert node_ids[0].endswith('-code')
+    #
+    swish_label = node.get('label', None)
+    assert swish_label is not None
+    assert node_ids[0] == '{}-code'.format(nodes.make_id(swish_label))
 
     # composes the `inherit-id` HTML attribute if present
     inherit_id = node.attributes.get('inherit_id', None)
     if inherit_id is not None:
         iid = []
         for i in inherit_id.split(' '):
-            iid.append('swish.{}'.format(i))
+            iid.append('{}-code'.format(nodes.make_id(i)))
             # ensure that all of the inherited code blocks are also in this
             # document as otherwise the inheritance JavaScript will not work
             if env.sl_swish_code[i]['main_doc'] not in self.docnames:
@@ -84,7 +88,7 @@ def visit_swish_code_node(self, node):
                     ('The code block *{}* placed in *{}* document inherits '
                      '*{}*, which is in a different document (*{}*). '
                      'Inheritance only works in a scope of a single '
-                     'document.'.format(swish_id, self.docnames, i,
+                     'document.'.format(swish_label, self.docnames, i,
                                         env.sl_swish_code[i]['main_doc']))
                 )
         attributes['inherit-id'] = ' '.join(iid)
@@ -102,7 +106,7 @@ def visit_swish_code_node(self, node):
         attributes['source-text-end'] = source_text_end
 
     # if the block is being inherited from, it needs a special class
-    if swish_id in env.sl_swish_inherited:
+    if swish_label in env.sl_swish_inherited:
         class_list.append('temp')
 
     # If either of the `source-text-start` or `source-text-end` attributes are
@@ -237,7 +241,7 @@ def depart_swish_code_node_(self, node):
     raise NotImplemented
 
 
-def strip_exercise_block(text):
+def strip_examples_block(text):
     """
     Strips the *examples* block of text from the input text::
        file content
@@ -266,14 +270,15 @@ class SWISH(Directive):
     Defines the `swish` directive for building Simply Logical swish boxes with
     code.
     The `swish` directive is of the form::
-       .. swish:: 1.2.3 (required)
-          :inherit-id: 4.1.1[, xxx, xxx] (optional)
+       .. swish:: swish:1.2.3 (required)
+          :inherit-id: swish:4.1.1 [swish:4.1.2 swish:4.1.3] (optional)
           :source-text-start: 4.1.1-start (optional)
           :source-text-end: 4.1.1-end (optional)
 
-    All of the ids need to be Prolog code files **without the** `.pl`
-    **extension**, located in a single directory. The directory is provided to
-    Sphinx via the `sl_code_directory` config setting and is **required**.
+    All of the ids need to be Prolog code files **with** the `swish:` prefix
+    and **without the** `.pl` **extension**, located in a single directory.
+    The directory is provided to Sphinx via the `sl_code_directory` config
+    setting and is **required**.
 
     Optionally, the `sl_swish_url` config setting can be provided, which
     specifies the URL of the execution swish server. If one is not given,
@@ -335,13 +340,18 @@ class SWISH(Directive):
                                'exist.'.format(localised_directory))
 
         # get the code file name for this particular swish box
-        code_filename = self.arguments[0]
-        # add the .pl extension as it should be missing
-        if not code_filename.endswith('.pl'):
-            code_filename_id = code_filename
-            code_filename += '.pl'
-        else:
-            code_filename_id = code_filename[:-3]
+        assert len(self.arguments) == 1, (
+            'Just one argument -- code block id (possibly encoding the code '
+            'file name -- expected')
+        code_filename_id = self.arguments[0]
+        assert code_filename_id.startswith('swish:'), (
+            'The code box label ({}) must start with the "swish:" '
+            'prefix.'.format(code_filename_id))
+        assert not code_filename_id.endswith('.pl'), (
+            'The code box label ({}) must not end with the ".pl" '
+            'extension prefix.'.format(code_filename_id))
+        # add the .pl extension as it is missing
+        code_filename = '{}.pl'.format(code_filename_id[6:])
 
         # compose the full path to the code file and ensure it exists
         path_localised = os.path.join(localised_directory, code_filename)
@@ -361,10 +371,15 @@ class SWISH(Directive):
         if inherit_id is not None:
             for iid in inherit_id.split(' '):
                 iid = iid.strip()
+                if not iid.startswith('swish:'):
+                    raise RuntimeError('The *inherit-id* parameter of a swish '
+                                       'box should start with the "swish:" '
+                                       'prefix.')
                 if iid.endswith('.pl'):
                     raise RuntimeError('The *inherit-id* parameter of a swish '
-                                       'box should not use .pl extension.')
-                inherit_id_filename = iid + '.pl'
+                                       'box should not use the ".pl" '
+                                       'extension.')
+                inherit_id_filename = '{}.pl'.format(iid[6:])
                 inherit_id_path = os.path.join(localised_directory,
                                                inherit_id_filename)
                 file_exists(inherit_id_path)
@@ -392,7 +407,7 @@ class SWISH(Directive):
             with open(source_start_path, 'r') as f:
                 contents = f.read()
             # clean out the examples section
-            raw_content = strip_exercise_block(contents)
+            raw_content = strip_examples_block(contents)
             attributes['source_text_start'] = '{}\n\n'.format(raw_content)
         # extract `source-text-end` and memorise it
         source_end = options.get('source-text-end', None)
@@ -406,18 +421,23 @@ class SWISH(Directive):
             with open(source_end_path, 'r') as f:
                 contents = f.read()
             # clean out the examples section
-            raw_content = strip_exercise_block(contents)
+            raw_content = strip_examples_block(contents)
             attributes['source_text_end'] = '\n{}'.format(raw_content)
 
         # read in the code file and create a swish **code** node
         with open(path_localised, 'r') as f:
             contents = f.read()
         pre = swish_code(contents.strip(), contents,
-                         ids=['swish.{}'.format(code_filename_id)],
+                         ids=['{}-code'.format(
+                             nodes.make_id(code_filename_id))],
+                         label=code_filename_id,
                          **attributes)
 
         # create the outer swish node
-        box = swish_box(ids=[code_filename_id])
+        box = swish_box()
+        # assign label and id (`ids=[nodes.make_id(code_filename_id)]`)
+        self.options['name'] = code_filename_id
+        self.add_name(box)
 
         # insert the swish code node into the outer node
         box += pre
