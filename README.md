@@ -161,6 +161,7 @@ inherit-id: swish:4.5.6 swish:4.5.7 swish:4.5.8
 source-text-start: 4.5.6-start
 source-text-end: 4.5.6-end
 ---
+optional :- content.
 ```
 ````
 
@@ -182,10 +183,10 @@ The `swish` extension uses the following [Sphinx] configuration parameters:
 Each [SWISH] code box has one **required** argument that
 specifies the *unique* id of this particular interactive code block.
 This id **must** start with the `swish:` prefix.
-The content of the [SWISH] box directive **must be empty** as it is pulled from
-a code file whose name is derived from the code box id and which should be
-located in the directory specified via the `sl_code_directory` configuration
-parameter.
+The content of a [SWISH] box can **either** be provided explicitly within the
+directive, **or** -- when the content is left empty -- it is pulled from a code
+file whose name is derived from the code box id and which should be located in
+the directory specified via the `sl_code_directory` configuration parameter.
 The code file name is expected to be the code block id **without** the `swish:`
 prefix and **with** the `.pl` extension.
 For example, for a code block with `swish:my_code` id, the code file should be
@@ -214,8 +215,6 @@ changes and automatically regenerates the affected pages.
 
 ## TODO ##
 
-- [ ] TODO(Kacper): SWISH box content should overwrite file import;
-      check the inheritance not to be the file but an existing node
 - [ ] TODO(Kacper): add a SWISH box parameter to manually include SWISH queries
 
 - [ ] TODO(Kacper): add SWISH queries, both inline and display (ensure that

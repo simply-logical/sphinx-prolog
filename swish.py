@@ -164,7 +164,7 @@ def starttag(self, node, tagname, suffix='\n', empty=False, **attributes):
     if ids:
         atts['id'] = ids[0]
         for id in ids[1:]:
-            # Add empty "span" elements for additional IDs.  Note
+            # Add empty "span" elements for additional IDs. Note
             # that we cannot use empty "a" elements because there
             # may be targets inside of references, but nested "a"
             # elements aren't allowed in XHTML (even if they do
@@ -305,7 +305,7 @@ class SWISH(Directive):
     required_arguments = 1
     optional_arguments = 0
     final_argument_whitespace = False
-    has_content = False
+    has_content = True
     option_spec = {'inherit-id': directives.unchanged,
                    'source-text-start': directives.unchanged,
                    'source-text-end': directives.unchanged}
@@ -353,19 +353,9 @@ class SWISH(Directive):
         # add the .pl extension as it is missing
         code_filename = '{}.pl'.format(code_filename_id[6:])
 
-        # compose the full path to the code file and ensure it exists
-        path_localised = os.path.join(localised_directory, code_filename)
-        # path_original = os.path.join(sl_code_directory, code_filename)
-        file_exists(path_localised)
-
-        # memorise the association between the document (a content source
-        # file) and the code box -- this is used for watching for code file
-        # updates
-        self.memorise_code(code_filename_id, path_localised,
-                           is_main_codeblock=True)
-
         # process the options -- they are used as HTML attributes
         attributes = {}
+
         # extract `inherit-id` (which may contain multiple ids) and memorise it
         inherit_id = options.get('inherit-id', None)
         if inherit_id is not None:
@@ -379,14 +369,6 @@ class SWISH(Directive):
                     raise RuntimeError('The *inherit-id* parameter of a swish '
                                        'box should not use the ".pl" '
                                        'extension.')
-                inherit_id_filename = '{}.pl'.format(iid[6:])
-                inherit_id_path = os.path.join(localised_directory,
-                                               inherit_id_filename)
-                file_exists(inherit_id_path)
-                # memorise the association between the document and code box
-                # NOTE: this may note necasarily be needed as the inherit code
-                # is not read directly into the document from the code file
-                self.memorise_code(iid, inherit_id_path)
                 # memorise that this code id will be inherited
                 if not hasattr(env, 'sl_swish_inherited'):
                     env.sl_swish_inherited = dict()
@@ -395,6 +377,7 @@ class SWISH(Directive):
                 else:
                     env.sl_swish_inherited[iid] = {env.docname}
             attributes['inherit_id'] = inherit_id
+
         # extract `source-text-start` and memorise it
         source_start = options.get('source-text-start', None)
         if source_start is not None:
@@ -424,9 +407,29 @@ class SWISH(Directive):
             raw_content = strip_examples_block(contents)
             attributes['source_text_end'] = '\n{}'.format(raw_content)
 
-        # read in the code file and create a swish **code** node
-        with open(path_localised, 'r') as f:
-            contents = f.read()
+        # if the content is given explicitly, use it instead of loading a file
+        if self.content:
+            contents = '\n'.join(self.content)
+
+            # memorise the association between the document (a content source
+            # file) and the code box
+            self.memorise_code(code_filename_id, None, is_main_codeblock=True)
+        else:
+            # compose the full path to the code file and ensure it exists
+            path_localised = os.path.join(localised_directory, code_filename)
+            # path_original = os.path.join(sl_code_directory, code_filename)
+            file_exists(path_localised)
+
+            # memorise the association between the document (a content source
+            # file) and the code box -- this is used for watching for code file
+            # updates
+            self.memorise_code(code_filename_id, path_localised,
+                               is_main_codeblock=True)
+
+            # read in the code file and create a swish **code** node
+            with open(path_localised, 'r') as f:
+                contents = f.read()
+
         pre = swish_code(contents.strip(), contents,
                          ids=['{}-code'.format(
                              nodes.make_id(code_filename_id))],
@@ -449,10 +452,9 @@ class SWISH(Directive):
         """
         Memorises the association between the current document (a content
         source file containing the instantiation of the `swish` directive
-        encoded by this object) and the code box. This procedure is also
-        applied to *inherited files* as well as *linked sources*
-        (`source-text-start` and `source-text-end`) in addition to the code box
-        itself.
+        encoded by this object) and the code box.
+        This procedure is also applied to *linked sources* (`source-text-start`
+        and `source-text-end`) in addition to the code box itself.
         All of this information is stored in the `sl_swish_code` Sphinx
         environmental variable, which has the following structure::
             {'code_id': {'docs': set(docnames),
@@ -464,6 +466,9 @@ class SWISH(Directive):
         Memorising this information allows to watch for changes in the code
         files and force Sphinx to rebuild pages that include swish boxes that
         depend upon them.
+
+        `path` and `signature` are both `None` if the content of the SWISH box
+        was given explicitly as the directive content.
         """
         env = self.state.document.settings.env
 
@@ -474,10 +479,14 @@ class SWISH(Directive):
         # changed and add the document name to the watchlist for this code file
         if code_filename_id in env.sl_swish_code:
             # verify signature
-            if (os.path.getmtime(path_localised)
-                    != env.sl_swish_code[code_filename_id]['signature']):
-                raise RuntimeError('A code file signature has changed during '
-                                   'the runtime.')
+            if path_localised is None:
+                assert env.sl_swish_code[code_filename_id]['path'] is None
+                assert env.sl_swish_code[code_filename_id]['signature'] is None
+            else:
+                if (os.path.getmtime(path_localised)
+                        != env.sl_swish_code[code_filename_id]['signature']):
+                    raise RuntimeError('A code file signature has changed '
+                                       'during the runtime.')
             # add the document name to the set of dependent files
             env.sl_swish_code[code_filename_id]['docs'].add(env.docname)
 
@@ -497,11 +506,15 @@ class SWISH(Directive):
                     )
         # if code id has not been seen, create a new item storing its details
         else:
+            if path_localised is None:
+                timestamp = None
+            else:
+                timestamp = os.path.getmtime(path_localised)
             env.sl_swish_code[code_filename_id] = {
                 'docs': {env.docname},
                 'main_doc': env.docname if is_main_codeblock else None,
                 'path': path_localised,
-                'signature': os.path.getmtime(path_localised)
+                'signature': timestamp
             }
 
 
@@ -660,20 +673,50 @@ def analyse_swish_code(app, env, added, changed, removed):
     changed_code_files = set()
     for code_dict in env.sl_swish_code.values():
         # if the file still exists, check whether it has been updated
-        if os.path.exists(code_dict['path']):
-            file_signature = os.path.getmtime(code_dict['path'])
-            if file_signature != code_dict['signature']:
-                # check which files use this code file and add them to the list
-                changed_code_files = changed_code_files.union(code_dict['docs'])
-        # if the file has been removed, force a refresh of the affected docs
+        if code_dict['path'] is not None:
+            if os.path.exists(code_dict['path']):
+                file_signature = os.path.getmtime(code_dict['path'])
+                if file_signature != code_dict['signature']:
+                    # check which files use this code file and refresh them
+                    changed_code_files = changed_code_files.union(
+                        code_dict['docs'])
+            # if the file has been removed, refresh the affected docs
+            else:
+                changed_code_files = changed_code_files.union(
+                    code_dict['docs'])
         else:
-            changed_code_files = changed_code_files.union(code_dict['docs'])
+            assert code_dict['signature'] is None
 
     # disregard documents that are already marked to be updated or were
     # discarded
     changed_code_files -= removed | changed | added
 
     return changed_code_files
+
+
+def check_inheritance_correctness(app, document):
+    """
+    Checks whether SWISH ids provided via the `inherit-id` parameter exist.
+    """
+    # go through every swish code
+    for node in document.traverse(swish_code):
+        # get the inherit-id string
+        inherit_id = node.attributes.get('inherit_id', '')
+
+        # we are only interested in the nodes that inherit something
+        if not inherit_id:
+            continue
+
+        # analyse each inherited id
+        for iid_ in inherit_id.split(' '):
+            iid = iid_.strip()
+
+            # check whether this id exists in the swish box record
+            # the existence of the inherited file (if explicit content was not
+            # given) should be checked upon its initialisation
+            if iid not in app.env.sl_swish_code:
+                raise RuntimeError('The inherited *{}* swish id does not '
+                                   'exist.'.format(iid))
 
 
 def assign_reference_title(app, document):
@@ -750,6 +793,7 @@ def setup(app):
     app.connect('env-purge-doc', purge_swish_detect)
     app.connect('env-merge-info', merge_swish_detect)
     app.connect('doctree-read', assign_reference_title)
+    app.connect('doctree-read', check_inheritance_correctness)
     app.connect('doctree-resolved', inject_swish_detect)
     app.connect('env-get-outdated', analyse_swish_code)
 
