@@ -75,6 +75,11 @@ def visit_swish_code_node(self, node):
     assert swish_label is not None
     assert node_ids[0] == '{}-code'.format(nodes.make_id(swish_label))
 
+    # get user-provided SWISH queries if present (`query-text` HTML attribute)
+    query_text = node.attributes.get('query_text', None)
+    if query_text is not None:
+        attributes['query-text'] = query_text
+
     # composes the `inherit-id` HTML attribute if present
     inherit_id = node.attributes.get('inherit_id', None)
     if inherit_id is not None:
@@ -271,6 +276,7 @@ class SWISH(Directive):
     code.
     The `swish` directive is of the form::
        .. swish:: swish:1.2.3 (required)
+          :query-text: ?-linked(a,b,X). ?-linked(X,a,Y). (optional)
           :inherit-id: swish:4.1.1 [swish:4.1.2 swish:4.1.3] (optional)
           :source-text-start: 4.1.1-start (optional)
           :source-text-end: 4.1.1-end (optional)
@@ -306,7 +312,8 @@ class SWISH(Directive):
     optional_arguments = 0
     final_argument_whitespace = False
     has_content = True
-    option_spec = {'inherit-id': directives.unchanged,
+    option_spec = {'query-text': directives.unchanged,
+                   'inherit-id': directives.unchanged,
                    'source-text-start': directives.unchanged,
                    'source-text-end': directives.unchanged}
 
@@ -355,6 +362,12 @@ class SWISH(Directive):
 
         # process the options -- they are used as HTML attributes
         attributes = {}
+
+        # memorise implicit SWISH queries
+        query_text = options.get('query-text', None)
+        if query_text is not None:
+            query_text = query_text.strip()
+            attributes['query_text'] = query_text
 
         # extract `inherit-id` (which may contain multiple ids) and memorise it
         inherit_id = options.get('inherit-id', None)

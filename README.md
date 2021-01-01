@@ -137,7 +137,7 @@ prefix and with the `.md` extension.
 For example, for an exercise with `ex:my_exercise` id, the content file should
 be named `my_exercise.md`.
 If both the exercise content file exist and the directive is explicitly filled
-with content, the latter takes precedent.
+with content, the latter takes precedence.
 Solutions behave in the same way -- their content is sourced from the
 **linked exercise file** or is provided directly within the directive.
 
@@ -157,6 +157,7 @@ A *[SWISH] box* is included with the `swish` directive:
 ````text
 ```{swish} swish:1.2.3
 ---
+query-text: ?-linked(a,b,X). ?-linked(X,a,Y).
 inherit-id: swish:4.5.6 swish:4.5.7 swish:4.5.8
 source-text-start: 4.5.6-start
 source-text-end: 4.5.6-end
@@ -196,6 +197,10 @@ changes and automatically regenerates the affected pages.
 
 [SWISH] code blocks also have a number of **optional** parameters:
 
+* `query-text` -- specifies a collection of queries to be implicitly embedded
+  in the [SWISH] box (handled by the `lpn.js` JavaScript).
+  If both the `/** <examples> ... */` block (in the [SWISH] box content) and
+  the `query-text` parameter are provided, the latter takes precedence.
 * `inherit-id` -- specifies (space separated) **id(s)** of code block(s) whose
   content will be inherited into this particular [SWISH] box.
   The inherited code block(s) **must** be placed on the same page (the same
@@ -214,8 +219,6 @@ changes and automatically regenerates the affected pages.
   (The suffix logic is handled by the `lpn.js` JavaScript.)
 
 ## TODO ##
-
-- [ ] TODO(Kacper): add a SWISH box parameter to manually include SWISH queries
 
 - [ ] TODO(Kacper): add SWISH queries, both inline and display (ensure that
   they are on the same page)
