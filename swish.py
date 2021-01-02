@@ -17,6 +17,14 @@ from sl import VERSION, file_exists
 if sys.version_info >= (3, 0):
     unicode = str
 
+_EXAMPLES_RGX = '\s*^/\*\*\s*<examples>\s*$.*?(?!^\*/\s*$).*?^\*/\s*$\s*'
+EXAMPLES_PATTERN = re.compile(_EXAMPLES_RGX, flags=(re.M | re.I | re.S))
+_LABEL_RGX = '<(swishq:\S+)>'
+LABEL_PATTERN = re.compile(_LABEL_RGX, flags=(re.M | re.I | re.S))
+_LABEL_STRING_RGX = '(?:^.+<)(\S+)(?:>\s*$)'
+LABEL_STRING_PATTERN = re.compile(_LABEL_STRING_RGX, flags=(re.M | re.I | re.S))
+
+
 #### SWISH directive ##########################################################
 
 
@@ -26,13 +34,20 @@ class swish_box(nodes.General, nodes.Element):
 
 def visit_swish_box_node(self, node):
     """Builds an opening HTML tag for Simply Logical swish boxes."""
+    inline = node.attributes.get('inline', False)
+    inline_tag = 'span' if inline else 'div'
+
     self.body.append(self.starttag(
-        node, 'div', CLASS=('extract swish')))
+        node, inline_tag, CLASS=('extract swish')))
 
 
 def depart_swish_box_node(self, node):
     """Builds a closing HTML tag for Simply Logical swish boxes."""
-    self.body.append('</div>\n')
+    inline = node.attributes.get('inline', False)
+    # lack of `\n` after the `span` tag ensures correct spacing of the text
+    inline_tag = '</span>' if inline else '</div>\n'
+
+    self.body.append(inline_tag)
 
 
 def visit_swish_box_node_(self, node):
@@ -80,14 +95,42 @@ def visit_swish_code_node(self, node):
     if query_text is not None:
         attributes['query-text'] = query_text
 
+    # get user-provided SWISH query id if present (`query-id` HTML attribute)
+    query_id = node.attributes.get('query_id', None)
+    if query_id is not None:
+        # ensure that all of the referenced queries are also in this
+        # document as otherwise the inheritance JavaScript will not work
+        if not hasattr(env, 'sl_swish_query'):
+            raise RuntimeError('A swish query box with *{}* id has not '
+                               'been found.'.format(query_id))
+        iid = []
+        for i_ in query_id.strip().split(' '):
+            i = i_.strip()
+            if not i:
+                continue
+            if env.sl_swish_query[i] not in self.docnames:
+                raise RuntimeError(
+                    ('The code block *{}* placed in *{}* document uses query '
+                     '*{}*, which is in a different document (*{}*). '
+                     'Query referencing only works in a scope of a single '
+                     'document.'.format(swish_label, self.docnames, i,
+                                        env.sl_swish_query[i]))
+                )
+            iid.append('{}-query'.format(nodes.make_id(i)))
+        attributes['query-id'] = ' '.join(iid)
+
     # composes the `inherit-id` HTML attribute if present
     inherit_id = node.attributes.get('inherit_id', None)
     if inherit_id is not None:
         iid = []
-        for i in inherit_id.split(' '):
+        for i_ in inherit_id.strip().split(' '):
+            i = i_.strip()
+            if not i:
+                continue
             iid.append('{}-code'.format(nodes.make_id(i)))
             # ensure that all of the inherited code blocks are also in this
             # document as otherwise the inheritance JavaScript will not work
+            assert hasattr(env, 'sl_swish_code')
             if env.sl_swish_code[i]['main_doc'] not in self.docnames:
                 raise RuntimeError(
                     ('The code block *{}* placed in *{}* document inherits '
@@ -263,10 +306,7 @@ def strip_examples_block(text):
        file content
        ...
     """
-    rgx = '\s*^/\*\*\s*<examples>\s*$.*?(?!^\*/\s*$).*?^\*/\s*$\s*'
-    pattern = re.compile(rgx, flags=(re.M | re.I | re.S))
-
-    no_examples = pattern.sub('\n', text).strip()
+    no_examples = EXAMPLES_PATTERN.sub('\n', text).strip()
     return no_examples
 
 
@@ -313,6 +353,7 @@ class SWISH(Directive):
     final_argument_whitespace = False
     has_content = True
     option_spec = {'query-text': directives.unchanged,
+                   'query-id': directives.unchanged,
                    'inherit-id': directives.unchanged,
                    'source-text-start': directives.unchanged,
                    'source-text-end': directives.unchanged}
@@ -369,11 +410,41 @@ class SWISH(Directive):
             query_text = query_text.strip()
             attributes['query_text'] = query_text
 
+        # memorise SWISH query box id
+        query_id = options.get('query-id', None)
+        if query_id is not None:
+            id_collector = []
+            for iid in query_id.strip().split(' '):
+                iid = iid.strip()
+                if not iid:
+                    continue
+                if not iid.startswith('swishq:'):
+                    raise RuntimeError(
+                        'The *query-id* parameter of a swish box '
+                        'should start with the "swishq:" prefix.')
+                if iid.endswith('.pl'):
+                    raise RuntimeError(
+                        'The *query-id* parameter of a swish box '
+                        'should not use the ".pl" extension.')
+                #####  existence of the query id is checked in the  #####
+                #####  `check_inheritance_correctness` function     #####
+                if iid in id_collector:
+                    raise RuntimeError('The *{}* query block id provided via '
+                                       'the *query-id* parameter of the *{}* '
+                                       'code block is duplicated.'.format(
+                                           iid, code_filename_id))
+                else:
+                    id_collector.append(iid)
+            attributes['query_id'] = query_id
+
         # extract `inherit-id` (which may contain multiple ids) and memorise it
         inherit_id = options.get('inherit-id', None)
         if inherit_id is not None:
-            for iid in inherit_id.split(' '):
+            id_collector = []
+            for iid in inherit_id.strip().split(' '):
                 iid = iid.strip()
+                if not iid:
+                    continue
                 if not iid.startswith('swish:'):
                     raise RuntimeError('The *inherit-id* parameter of a swish '
                                        'box should start with the "swish:" '
@@ -382,6 +453,15 @@ class SWISH(Directive):
                     raise RuntimeError('The *inherit-id* parameter of a swish '
                                        'box should not use the ".pl" '
                                        'extension.')
+                #####  existence of the inherited ids is checked in the  #####
+                #####  `check_inheritance_correctness` function          #####
+                if iid in id_collector:
+                    raise RuntimeError('The *{}* code block id provided via '
+                                       'the *inherit-id* parameter of the *{}* '
+                                       'code block is duplicated.'.format(
+                                           iid, code_filename_id))
+                else:
+                    id_collector.append(iid)
                 # memorise that this code id will be inherited
                 if not hasattr(env, 'sl_swish_inherited'):
                     env.sl_swish_inherited = dict()
@@ -586,8 +666,8 @@ def purge_swish_detect(app, env, docname):
 def merge_swish_detect(app, env, docnames, other):
     """
     In case documents are processed in parallel, the data stored in
-    `sl_has_swish`, `sl_swish_inherited` and `sl_swish_code` Sphinx environment
-    variables from different threads need to merged.
+    `sl_has_swish`, `sl_swish_inherited` and `sl_swish_code` Sphinx
+    environment variables from different threads need to be merged.
 
     This function is hooked up to the `env-merge-info` Sphinx event.
     """
@@ -707,29 +787,47 @@ def analyse_swish_code(app, env, added, changed, removed):
     return changed_code_files
 
 
-def check_inheritance_correctness(app, document):
+def check_inheritance_correctness(app, doctree, docname):
     """
-    Checks whether SWISH ids provided via the `inherit-id` parameter exist.
+    Checks whether SWISH ids provided via the `inherit-id` (code boxes) and
+    `query-id` (query boxes) parameters exist.
     """
     # go through every swish code
-    for node in document.traverse(swish_code):
-        # get the inherit-id string
+    for node in doctree.traverse(swish_code):
+        # get the inherit-id and query-id strings
         inherit_id = node.attributes.get('inherit_id', '')
+        query_id = node.attributes.get('query_id', '')
 
         # we are only interested in the nodes that inherit something
-        if not inherit_id:
-            continue
+        if inherit_id:
+            # analyse each inherited id
+            for iid_ in inherit_id.strip().split(' '):
+                iid = iid_.strip()
+                if not iid:
+                    continue
+                # check whether this id exists in the swish box record
+                # the existence of the inherited file (if explicit content was
+                # not given) should be checked upon its initialisation
+                assert hasattr(app.env, 'sl_swish_code')
+                if iid not in app.env.sl_swish_code:
+                    raise RuntimeError('The inherited *{}* swish id does not '
+                                       'exist.'.format(iid))
 
-        # analyse each inherited id
-        for iid_ in inherit_id.split(' '):
-            iid = iid_.strip()
-
-            # check whether this id exists in the swish box record
-            # the existence of the inherited file (if explicit content was not
-            # given) should be checked upon its initialisation
-            if iid not in app.env.sl_swish_code:
-                raise RuntimeError('The inherited *{}* swish id does not '
-                                   'exist.'.format(iid))
+        # we are only interested in the nodes that reference a query
+        if query_id:
+            # check whether this id exists in the swish query record
+            if not hasattr(app.env, 'sl_swish_query'):
+                raise RuntimeError('A swish query box with *{}* id has not '
+                                   'been found.'.format(query_id))
+            # analyse each query id
+            for iid_ in query_id.strip().split(' '):
+                iid = iid_.strip()
+                if not iid:
+                    continue
+                # check whether this id exists in the swish query record
+                if iid not in app.env.sl_swish_query:
+                    raise RuntimeError('The referenced swish query id *{}* does '
+                                       'not exist.'.format(iid))
 
 
 def assign_reference_title(app, document):
@@ -747,7 +845,12 @@ def assign_reference_title(app, document):
         assert node['names']
         assert len(node['names']) == 1
         node_name = node['names'][0]
-        assert node_name.startswith('swish:')
+        if node_name.startswith('swish:'):
+            refname = 'SWISH code box'
+        elif node_name.startswith('swishq:'):
+            refname = 'SWISH query box'
+        else:
+            assert 0, 'SWISH box ids must either start with swish: or swishq:'
 
         # every swish box has a single id
         assert len(node['ids']) == 1
@@ -760,9 +863,368 @@ def assign_reference_title(app, document):
         assert node_name in domain.anonlabels
         assert domain.anonlabels[node_name] == (docname, node_id)
 
-        # allow this swish box to be referenced with the default 'SWISH box'
-        # stub
-        domain.labels[node_name] = (docname, node_id, 'SWISH box')
+        # allow this swish box to be referenced with the default
+        # 'SWISH code box' or 'SWISH query box' stub
+        domain.labels[node_name] = (docname, node_id, refname)
+
+
+#### SWISH query directive ####################################################
+
+
+class swish_query(nodes.literal, nodes.Element):  # nodes.literal-block
+    """A `docutils` node holding Simply Logical swish queries."""
+
+
+def visit_swish_query_node(self, node):
+    """Builds an opening HTML tag for Simply Logical swish queries."""
+    env = self.document.settings.env
+
+    # get node id
+    node_ids = node.get('ids', [])
+    assert len(node_ids) == 1
+    assert node_ids[0].startswith('swishq')
+    assert node_ids[0].endswith('-query')
+    #
+    node_label = node.get('label', None)
+    assert node_label is not None
+    assert node_ids[0] == '{}-query'.format(nodes.make_id(node_label))
+
+    inline = node.attributes.get('inline', None)
+    assert inline is not None and isinstance(inline, bool)
+    if inline:
+        # inline_class = ''
+        inline_tag = 'code'
+    else:
+        # inline_class = 'literal '  # 'literal ' 'literal-block '
+        inline_tag = 'pre'
+
+    attributes = dict()
+    # composes the `source-id` HTML attribute if present
+    source_id = node.attributes.get('source_id', None)
+    if source_id is not None:
+        if not hasattr(env, 'sl_swish_code'):
+            raise RuntimeError('A swish code box with *{}* id has not '
+                               'been found.'.format(source_id))
+        iid = []
+        for i_ in source_id.strip().split(' '):
+            i = i_.strip()
+            if not i:
+                continue
+            iid.append('{}-code'.format(nodes.make_id(i)))
+            # ensure that all of the source code blocks are also in this
+            # document as otherwise the query export JavaScript will not work
+            if env.sl_swish_code[i]['main_doc'] not in self.docnames:
+                raise RuntimeError(
+                    ('The query block *{}* placed in *{}* document exports to '
+                     '*{}*, which is in a different document (*{}*). '
+                     'Query export via the *source-id* parameter only works '
+                     'in a scope of a single document.'.format(
+                         node_label, self.docnames, i,
+                         env.sl_swish_code[i]['main_doc']))
+                )
+        attributes['source-id'] = ' '.join(iid)
+
+    self.body.append(self.starttag(  # '{}swish query'.format(inline_class)
+        node, inline_tag, CLASS=('swish query'), **attributes))
+
+
+def depart_swish_query_node(self, node):
+    """Builds a closing HTML tag for Simply Logical swish queries."""
+    inline = node.attributes.get('inline', None)
+    assert inline is not None and isinstance(inline, bool)
+    # lack of `\n` after the `code` tag ensures correct spacing of the text
+    inline_tag = '</code>' if inline else '</pre>\n'
+
+    self.body.append(inline_tag)
+
+
+def visit_swish_query_node_(self, node):
+    """
+    Builds a prefix for embedding Simply Logical swish queries in LaTeX and raw
+    text.
+    """
+    raise NotImplemented
+
+
+def depart_swish_query_node_(self, node):
+    """
+    Builds a postfix for embedding Simply Logical swish queries in LaTeX and
+    raw text.
+    """
+    raise NotImplemented
+
+
+def swish_q(name, rawtext, text, lineno, inliner, options={}, content=[]):
+    """
+    Defines the `swish-query` role for building **inline** Simply Logical swish
+    query boxes.
+    The `swish-query` role is of the form::
+       :swish-query:`?-my_query(a,X). <swishq:1.2.3>`
+
+    All of the ids need to be **prefixed** with `swishq:`.
+    The ids are defined within angle brackets at the very end of the role
+    text.
+    This role operates on one Sphinx environmental variable:
+
+    sl_swish_query
+      A dictionary encoding the association between query ids and documents in
+      which these queries are embedded (one document per **unique** id).
+
+    See the `SWISHq` class (`swish-query` directive) for more details.
+    This implementation was inspired by:
+    https://doughellmann.com/blog/2010/05/09/defining-custom-roles-in-sphinx/
+
+    ---
+
+    Parameters:
+
+    * `name` -- the role name used in the document;
+    * `rawtext` -- the entire markup snippet including the role name;
+    * `text` -- the content of the role;
+    * `lineno` -- the line number where rawtext appears in the input document;
+    * `inliner` -- the inliner instance that called this function;
+    * `options` -- role options for customisation (supplied via the `role`
+      directive); and
+    * `content` -- the directive content for customisation.
+
+    Return values:
+
+    1. a list of nodes to insert into the document (can be empty); and
+    2. a list of system messages used for displaying errors (can be empty).
+    """
+    assert name == 'swish-query'
+    env = inliner.document.settings.env
+
+    # get the query box id
+    matches = LABEL_PATTERN.findall(text)
+    if len(matches) != 1:
+        raise RuntimeError('Expected exactly one label in *{}*, but {} were '
+                           'found: {}.'.format(text, len(matches), matches))
+    block_id = matches[0]
+    text = re.sub('\s*<{}>'.format(block_id),
+                  '',
+                  text,
+                  flags=(re.M | re.I | re.S))
+    assert block_id not in text
+    assert block_id.startswith('swishq:'), (
+        'The query block label ({}) must start with the "swishq:" '
+        'prefix.'.format(block_id))
+    assert not block_id.endswith('.pl'), (
+        'The query block label ({}) must not end with the ".pl" '
+        'extension prefix.'.format(block_id))
+
+    # memorise the association between query id and document name and
+    # check for duplicate names
+    if not hasattr(env, 'sl_swish_query'):
+        env.sl_swish_query = dict()
+    if block_id in env.sl_swish_query:
+        raise RuntimeError(
+            'The {} swish query label is duplicated.'.format(block_id))
+    else:
+        env.sl_swish_query[block_id] = env.docname
+
+    # force inline
+    inline = True
+
+    # content is required
+    text_ = text.strip()
+    if not text_:
+        raise RuntimeError(
+            'The {} swish query box must have content.'.format(block_id))
+
+    # build the query node
+    pre = swish_query(text_, text,
+                      ids=['{}-query'.format(nodes.make_id(block_id))],
+                      label=block_id,
+                      inline=inline)
+
+    # create the outer swish node
+    box = swish_box(inline=inline)
+    # assign label and id (`ids=[nodes.make_id(block_id)]`)
+    # https://sourceforge.net/p/docutils/code/HEAD/tree/trunk/docutils/docutils/parsers/rst/__init__.py#l392
+    name = nodes.fully_normalize_name(block_id)
+    if 'name' in box:
+        del box['name']
+    box['names'].append(name)
+    inliner.document.note_explicit_target(box, box)
+
+    # insert the swish code node into the outer node
+    box += pre
+
+    return [box], []
+
+
+class SWISHq(Directive):
+    """
+    Defines the `swish-query` directive for building **display** Simply Logical
+    swish query boxes.
+    The `swish-query` directive is of the form::
+       .. swish-query:: swishq:1.2.3 (required)
+          :source-id: swish:1.0.0 [swish:1.0.1 swish:1.0.2] (optional)
+
+          ?-my_query(a,X).
+
+    All of the ids need to be **prefixed** with `swishq:`.
+    This directive operates on one Sphinx environmental variable:
+
+    sl_swish_query
+      A dictionary encoding the association between query ids and documents in
+      which these queries are embedded (one document per **unique** id).
+    """
+    required_arguments = 1
+    optional_arguments = 0
+    final_argument_whitespace = False
+    has_content = True
+    option_spec = {'source-id': directives.unchanged}
+
+    def run(self):
+        """Builds a swish query box."""
+        env = self.state.document.settings.env
+        options = self.options
+
+        # get the query box id
+        assert len(self.arguments) == 1, (
+            'Just one argument -- query box id -- expected')
+        block_id = self.arguments[0].strip()
+        assert block_id.startswith('swishq:'), (
+            'The query block label ({}) must start with the "swishq:" '
+            'prefix.'.format(block_id))
+        assert not block_id.endswith('.pl'), (
+            'The query block label ({}) must not end with the ".pl" '
+            'extension prefix.'.format(block_id))
+
+        # memorise the association between query id and document name and
+        # check for duplicate names
+        if not hasattr(env, 'sl_swish_query'):
+            env.sl_swish_query = dict()
+        if block_id in env.sl_swish_query:
+            raise RuntimeError(
+                'The {} swish query label is duplicated.'.format(block_id))
+        else:
+            env.sl_swish_query[block_id] = env.docname
+
+        attributes = dict()
+        # memorise SWISH query box id
+        source_id = options.get('source-id', None)
+        if source_id is not None:
+            id_collector = []
+            for iid in source_id.strip().split(' '):
+                iid = iid.strip()
+                if not iid:
+                    continue
+                if not iid.startswith('swish:'):
+                    raise RuntimeError(
+                        'The *source-id* parameter of a swish query box '
+                        'should start with the "swish:" prefix.')
+                if iid.endswith('.pl'):
+                    raise RuntimeError(
+                        'The *source-id* parameter of a swish query box '
+                        'should not use the ".pl" extension.')
+                #####  existence of the query id is checked in the  #####
+                #####  `check_sourceid_correctness` function        #####
+                if iid in id_collector:
+                    raise RuntimeError('The *{}* code block id provided via '
+                                       'the *source-id* parameter of the *{}* '
+                                       'query block is duplicated.'.format(
+                                           iid, block_id))
+                else:
+                    id_collector.append(iid)
+            attributes['source_id'] = source_id
+
+        # force display
+        inline = False
+
+        # content is required
+        if not self.content:
+            raise RuntimeError(
+                'The {} swish query box must have content.'.format(block_id))
+
+        # build the query node
+        contents = '\n'.join(self.content)
+        pre = swish_query(contents.strip(), contents,
+                          ids=['{}-query'.format(nodes.make_id(block_id))],
+                          inline=inline,
+                          label=block_id,
+                          **attributes)
+
+        # create the outer swish node
+        box = swish_box(inline=inline)
+        # assign label and id (`ids=[nodes.make_id(block_id)]`)
+        self.options['name'] = block_id
+        self.add_name(box)
+
+        # insert the swish code node into the outer node
+        box += pre
+
+        return [box]
+
+
+def purge_swish_query(app, env, docname):
+    """
+    Cleans the information stored in the Sphinx environment about documents
+    with swish query blocks (`sl_swish_query`).
+    If a document gets regenerated, the information about the queries embedded
+    within this document is removed before the document is processed again.
+
+    This function is hooked up to the `env-purge-doc` Sphinx event.
+    """
+    if hasattr(env, 'sl_swish_query'):
+        # if the document was recorded to have a swish query block and is now
+        # being rebuilt, remove it from the store
+        purge = []
+        for key, value in env.sl_swish_query.items():
+            if value == docname:
+                purge.append(key)
+        for key in purge:
+            del env.sl_swish_query[key]
+            assert key not in env.sl_swish_query
+
+
+def merge_swish_query(app, env, docnames, other):
+    """
+    In case documents are processed in parallel, the data stored in the
+    `sl_swish_query` Sphinx environment variable from different threads need
+    to be merged.
+
+    This function is hooked up to the `env-merge-info` Sphinx event.
+    """
+    if not hasattr(env, 'sl_swish_query'):
+        env.sl_swish_query = dict()
+    if hasattr(other, 'sl_swish_query'):
+        for key in other.sl_swish_query:
+            # check for duplicates
+            if key in env.sl_swish_query:
+                raise RuntimeError('Multiple documents have a swish query '
+                                   'with the same id.'.format(key))
+            else:
+                env.sl_swish_query[key] = other.sl_swish_query[key]
+
+
+def check_sourceid_correctness(app, doctree, docname):
+    """
+    Checks whether SWISH ids provided via the `source-id` (query boxes)
+    parameter exist.
+    """
+    # go through every swish query box
+    for node in doctree.traverse(swish_query):
+        # get the source-id string
+        source_id = node.attributes.get('source_id', '').strip()
+
+        # we are only interested in the nodes that export something
+        if source_id:
+            # check whether this id exists in the swish query record
+            if not hasattr(app.env, 'sl_swish_code'):
+                raise RuntimeError('A swish code box with *{}* id has not '
+                                   'been found.'.format(source_id))
+            # analyse each query id
+            for iid_ in source_id.strip().split(' '):
+                iid = iid_.strip()
+                if not iid:
+                    continue
+                # check whether this id exists in the swish code record
+                if iid not in app.env.sl_swish_code:
+                    raise RuntimeError('The referenced swish code id *{}* '
+                                       'does not exist.'.format(iid))
 
 
 #### Extension setup ##########################################################
@@ -789,6 +1251,12 @@ def setup(app):
         latex=(visit_swish_code_node_, depart_swish_code_node_),
         text=(visit_swish_code_node_, depart_swish_code_node_)
     )
+    app.add_node(
+        swish_query,
+        html=(visit_swish_query_node, depart_swish_query_node),
+        latex=(visit_swish_query_node_, depart_swish_query_node_),
+        text=(visit_swish_query_node_, depart_swish_query_node_)
+    )
 
     # ensure the required auxiliary files are included in the Sphinx build
     if 'jupyter_book' not in app.config.extensions:
@@ -799,15 +1267,20 @@ def setup(app):
         app.add_css_file('jquery-ui.min.css')
         app.add_js_file('jquery-ui.min.js')
 
-    # register the custom directives with Sphinx
+    # register the custom role and directives with Sphinx
+    app.add_role('swish-query', swish_q)
     app.add_directive('swish', SWISH)
+    app.add_directive('swish-query', SWISHq)
 
     # connect custom hooks to the Sphinx build process
     app.connect('env-purge-doc', purge_swish_detect)
     app.connect('env-merge-info', merge_swish_detect)
     app.connect('doctree-read', assign_reference_title)
-    app.connect('doctree-read', check_inheritance_correctness)
+    app.connect('doctree-resolved', check_inheritance_correctness)
     app.connect('doctree-resolved', inject_swish_detect)
     app.connect('env-get-outdated', analyse_swish_code)
+    app.connect('env-purge-doc', purge_swish_query)
+    app.connect('env-merge-info', merge_swish_query)
+    app.connect('doctree-resolved', check_sourceid_correctness)
 
     return {'version': VERSION}

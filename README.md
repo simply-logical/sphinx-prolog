@@ -146,18 +146,22 @@ changes and automatically regenerates the affected pages.
 
 ## :floppy_disk: SWISH directive ##
 
-The [`swish.py`](swish.py) module defines the `swish` directive used for
-building *interactive [SWI Prolog] boxes* executed directly in the browser with
-[SWISH].
+The [`swish.py`](swish.py) module defines the `swish` and `swish-query`
+directives, as well as the `swish-query` role, all of which are used for
+building *interactive [SWI Prolog] boxes* executed directly in the browser
+with [SWISH].
 
 ### Usage ###
 
-A *[SWISH] box* is included with the `swish` directive:
+#### Code box ####
+
+A *[SWISH] code box* is included with the `swish` directive:
 
 ````text
 ```{swish} swish:1.2.3
 ---
 query-text: ?-linked(a,b,X). ?-linked(X,a,Y).
+query-id: swishq:1.1.1 swishq:1.1.2 swishq:1.1.3
 inherit-id: swish:4.5.6 swish:4.5.7 swish:4.5.8
 source-text-start: 4.5.6-start
 source-text-end: 4.5.6-end
@@ -166,8 +170,33 @@ optional :- content.
 ```
 ````
 
-Each [SWISH] box can be referenced with its name using the `ref`
-role, e.g., `` {ref}`swish:1.2.3` ``, which produces *SWISH box* hyper-link.
+Each [SWISH] code box can be referenced with its name using the `ref`
+role, e.g., `` {ref}`swish:1.2.3` ``, which produces *SWISH code box*
+hyper-link.
+
+#### Query box ####
+
+A **display** *[SWISH] query box* is included with the `swish-query`
+*directive*:
+
+````text
+```{swish-query} swishq:1.2.3
+---
+source-id: swish:1.0.0 swish:1.0.1 swish:1.0.2
+---
+?-my_query(a,X).
+```
+````
+
+An **inline** *[SWISH] query box* is included with the `swish-query` *role*:
+
+```text
+{swish-query}`?-my_query(a,X). <swishq:1.2.3>`
+```
+
+Each [SWISH] query box can be referenced with its name using the `ref`
+role, e.g., `` {ref}`swishq:1.2.3` ``, which produces *SWISH query box*
+hyper-link.
 
 ### Configuration parameters ###
 
@@ -180,6 +209,8 @@ The `swish` extension uses the following [Sphinx] configuration parameters:
   the Simply Logical SWISH JavaScript `lpn.js`).
 
 ### Arguments, parameters and content ###
+
+#### Code box ####
 
 Each [SWISH] code box has one **required** argument that
 specifies the *unique* id of this particular interactive code block.
@@ -201,6 +232,19 @@ changes and automatically regenerates the affected pages.
   in the [SWISH] box (handled by the `lpn.js` JavaScript).
   If both the `/** <examples> ... */` block (in the [SWISH] box content) and
   the `query-text` parameter are provided, the latter takes precedence.
+  However, the `query-text` parameter works in conjunction with the
+  *code box*'s `query-id` and *query box*'s `source-id` parameters.
+* `query-id` -- specifies (space separated) **id(s)** of query block(s) whose
+  content will be used to populate the queries of this [SWISH] box
+  (handled by the `lpn.js` JavaScript).
+  A [SWISH] code box can import a single (e.g., `query-id: swishq:4.5.6`) or
+  multiple (e.g., `query-id: swishq:4.5.6 swishq:4.5.7 swishq:4.5.8`) query
+  blocks.
+  Each [SWISH] query box **must** be placed on the same page (the same
+  document) as the code block that uses it.
+  The `query-id` parameter takes precedence over the `/** <examples> ... */`
+  block (in the [SWISH] box content), but it works in conjunction with the
+  *code box*'s `query-text` and *query box*'s `source-id` parameters.
 * `inherit-id` -- specifies (space separated) **id(s)** of code block(s) whose
   content will be inherited into this particular [SWISH] box.
   The inherited code block(s) **must** be placed on the same page (the same
@@ -218,18 +262,38 @@ changes and automatically regenerates the affected pages.
   this code block (e.g., `source-text-end: 4.5.6-end`).
   (The suffix logic is handled by the `lpn.js` JavaScript.)
 
-## TODO ##
+#### Query box ####
 
-- [ ] TODO(Kacper): add SWISH queries, both inline and display (ensure that
-  they are on the same page)
-- [ ] TODO(Kacper): add a SWISH box parameter to reference an existing query
+Each [SWISH] query *directive* has one **required** argument that
+specifies the *unique* id of this particular query block (which can be
+referenced by the `query-id` parameter of the [SWISH] code boxes).
+This id **must** start with the `swishq:` prefix.
+Similar, `swish-query` *roles* must contain their unique ids placed at the end
+of the role text and wrapped within angle brackets, e.g.,
+`` {swish-query}`?-my_prolog_query(a, B). <swishq:my_id>` ``.
 
-- [ ] TODO(Kacper): fix TODO tags
-- [ ] TODO(Kacper): hacked named paragraphs (search for `&nbsp;`) into markdown
-  sections (e.g., 1.2.1) -- will show up on the right in the content
-    - [ ] TODO (Kacper) prevent sphinx from numbering these entries (toc
-      `:maxdepth:`, e.g., `maxdepth: 2`) -- see
-      [here](https://github.com/executablebooks/jupyter-book/blob/master/jupyter_book/toc.py)
+Additionally, the [SWISH] query block **directive** has one **optional**
+parameter:
+
+* `source-id` -- specifies (space separated) **id(s)** of code block(s) that
+  will be injected with this particular query (handled by the `lpn.js`
+  JavaScript).
+  A [SWISH] query box can indicate a single (e.g., `source-id: swish:1.0.0`) or
+  multiple (e.g., `source-id: swish:1.0.0 swish:1.0.1 swish:1.0.2`) code
+  blocks.
+  Each referenced [SWISH] code box **must** be placed on the same page (the
+  same document) as the query box.
+  The `source-id` parameter takes precedence over the `/** <examples> ... */`
+  block (in the [SWISH] box content), but it works in conjunction with the
+  `query-id` and `query-text` parameters of the [SWISH] code blocks.
+
+---
+
+> The CSS and JS files used by this [Sphinx] extension (namely `sl.css`,
+  `lpn.css` and `lpn.js`, as well as their dependencies `jquery-ui.min.css` and
+  `jquery-ui.min.js`, and their auxiliary files `Actions-system-run-icon.png`
+  and `close.png`) can be found in the `_static` directory of the
+  [simply-logical/simply-logical] repository.
 
 [sphinx]: https://www.sphinx-doc.org/
 [jupyter book]: https://jupyterbook.org/
@@ -238,3 +302,4 @@ changes and automatically regenerates the affected pages.
 [myst markdown]: https://myst-parser.readthedocs.io/
 [reStructuredText]: https://docutils.sourceforge.io/rst.html
 [myst overview]: https://jupyterbook.org/content/myst.html
+[simply-logical/simply-logical]: https://github.com/simply-logical/simply-logical
