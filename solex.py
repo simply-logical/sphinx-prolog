@@ -266,7 +266,7 @@ class Exercise(Directive):
 
     `ex:2.9` is a label that can be referred to either with ``:ref:`ex:2.9```
     to get a hyperlink saying *exercise* (see the `exercise_title_getter`
-    function), or with ``:numref:`ex:2.9``` to get a numbered reference based
+    function), or with `` :numref:`ex:2.9` `` to get a numbered reference based
     on the `numfig_format` for `exercise` (see the `set_exercise_numfig_format`
     function), which by default is defined as `Exercise %s`. To change this
     stub the `numfig_format.exercise` Sphinx setting variable can be set to the
