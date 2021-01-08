@@ -287,6 +287,23 @@ parameter:
   block (in the [SWISH] box content), but it works in conjunction with the
   `query-id` and `query-text` parameters of the [SWISH] code blocks.
 
+## :test_tube: pseudo Prolog syntax highlighting ##
+
+The [`pprolog.py`](pprolog.py) module defines code block syntax highlighting
+for *pseudo Prolog* (`pProlog`).
+
+### Usage ###
+
+A *pseudo Prolog* (`pProlog`) code box with appropriate syntax highlighting is
+included with the standard *backtick fence* syntax (` ``` `) indicating
+`pProlog` programming language:
+
+````
+```pProlog
+my,pseudo,prolog;-code.
+```
+````
+
 ---
 
 > The CSS and JS files used by this [Sphinx] extension (namely `sl.css`,
