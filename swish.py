@@ -871,12 +871,27 @@ def assign_reference_title(app, document):
 #### SWISH query directive ####################################################
 
 
-class swish_query(nodes.literal, nodes.Element):  # nodes.literal-block
+class swish_query(nodes.literal, nodes.Element):  # nodes.literal_block
     """A `docutils` node holding Simply Logical swish queries."""
 
 
 def visit_swish_query_node(self, node):
-    """Builds an opening HTML tag for Simply Logical swish queries."""
+    """
+    Builds an opening HTML tag for Simply Logical swish queries.
+
+    For inline queries this method only builds the opening tag.
+    For display queries, on the other hand, it appends the opening tag,
+    the (syntax highlighted) content and the closing tag.
+    Since the latter operation requires the content to be formatted before
+    appending it to the document body, the automatic contend embedding is
+    disabled.
+    This is achieved by raising the `nodes.SkipNode` exception, the artifact
+    of which is not executing the `depart_swish_query_node` method, hence this
+    method must also append the closing tag for display queries.
+
+    Inspiration for the code syntax highlighting was taken from
+    https://github.com/sphinx-doc/sphinx/blob/7ecf6b88aa5ddaed552527d2ef60f1bd35e98ddc/sphinx/writers/html5.py#L384
+    """
     env = self.document.settings.env
 
     # get node id
@@ -888,15 +903,6 @@ def visit_swish_query_node(self, node):
     node_label = node.get('label', None)
     assert node_label is not None
     assert node_ids[0] == '{}-query'.format(nodes.make_id(node_label))
-
-    inline = node.attributes.get('inline', None)
-    assert inline is not None and isinstance(inline, bool)
-    if inline:
-        # inline_class = ''
-        inline_tag = 'code'
-    else:
-        # inline_class = 'literal '  # 'literal ' 'literal-block '
-        inline_tag = 'pre'
 
     attributes = dict()
     # composes the `source-id` HTML attribute if present
@@ -924,8 +930,29 @@ def visit_swish_query_node(self, node):
                 )
         attributes['source-id'] = ' '.join(iid)
 
-    self.body.append(self.starttag(  # '{}swish query'.format(inline_class)
-        node, inline_tag, CLASS=('swish query'), **attributes))
+    inline = node.attributes.get('inline', None)
+    assert inline is not None and isinstance(inline, bool)
+    lang = node.attributes.get('language')
+    if inline:
+        assert lang is None
+        starttag = self.starttag(
+            node, 'code', CLASS=('swish query'), **attributes)
+        self.body.append(starttag)
+    else:
+        # ensure Prolog syntax highlighting
+        assert lang == 'Prolog', 'SWISH query blocks must be Prolog syntax'
+        starttag = self.starttag(  # pre -> div # literal / literal-block
+            node, 'div', suffix='',
+            CLASS='swish query highlight-{} notranslate'.format(lang))
+        highlighted = self.highlighter.highlight_block(
+            node.rawsource, lang, location=node)
+        self.body.append(starttag + highlighted)
+        # lack of `\n` after the `code` tag ensures correct spacing of the text
+        # (see the depart_swish_query_node method for more details)
+        self.body.append('</div>\n')
+        # otherwise the raw content is inserted and
+        # the `depart_swish_query_node` method is executed
+        raise nodes.SkipNode
 
 
 def depart_swish_query_node(self, node):
@@ -933,7 +960,7 @@ def depart_swish_query_node(self, node):
     inline = node.attributes.get('inline', None)
     assert inline is not None and isinstance(inline, bool)
     # lack of `\n` after the `code` tag ensures correct spacing of the text
-    inline_tag = '</code>' if inline else '</pre>\n'
+    inline_tag = '</code>' if inline else '</div>\n'  # pre -> div
 
     self.body.append(inline_tag)
 
@@ -1145,6 +1172,7 @@ class SWISHq(Directive):
                           ids=['{}-query'.format(nodes.make_id(block_id))],
                           inline=inline,
                           label=block_id,
+                          language='Prolog',
                           **attributes)
 
         # create the outer swish node
