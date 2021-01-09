@@ -37,8 +37,16 @@ def visit_swish_box_node(self, node):
     inline = node.attributes.get('inline', False)
     inline_tag = 'span' if inline else 'div'
 
-    self.body.append(self.starttag(
-        node, inline_tag, CLASS=('extract swish')))
+    lang = node.attributes.get('language')
+    if lang is None:
+        cls = 'extract swish'
+    else:
+        # ensure Prolog syntax highlighting
+        assert lang == 'Prolog', 'SWISH query blocks must be Prolog syntax'
+        # support Prolog code syntax highlighting -> the `highlight` class
+        cls = 'extract swish highlight highlight-{} notranslate'.format(lang)
+
+    self.body.append(self.starttag(node, inline_tag, CLASS=cls))
 
 
 def depart_swish_box_node(self, node):
@@ -89,6 +97,10 @@ def visit_swish_code_node(self, node):
     swish_label = node.get('label', None)
     assert swish_label is not None
     assert node_ids[0] == '{}-code'.format(nodes.make_id(swish_label))
+
+    lang = node.attributes.get('language')
+    # ensure Prolog syntax highlighting
+    assert lang == 'Prolog', 'SWISH query blocks must be Prolog syntax'
 
     # get user-provided SWISH queries if present (`query-text` HTML attribute)
     query_text = node.attributes.get('query_text', None)
@@ -166,15 +178,31 @@ def visit_swish_code_node(self, node):
     # whitespace characters) that is also ported to this file.
     if 'source-text-start' in attributes or 'source-text-end' in attributes:
         # escape html such as <, >, ", etc. but **preserve new lines**
-        tag = starttag(self, node, 'pre',
+        tag = starttag(self, node, 'pre',  # suffix='',
                        CLASS=' '.join(class_list),
                        **attributes)
     else:
-        tag = self.starttag(node, 'pre',
+        tag = self.starttag(node, 'pre',  # suffix='',
                             CLASS=' '.join(class_list),
                             **attributes)
-    self.body.append(tag)
+    #self.body.append(tag)
     #self.visit_literal_block(node)
+
+    highlighted = self.highlighter.highlight_block(
+        node.rawsource, lang, location=node)
+    # strip the external `<div class="highlight"><pre>` and `</pre></div>` tags
+    # (the existing swish extract syntax has been adapted)
+    assert highlighted.startswith('<div class="highlight"><pre>')
+    highlighted = highlighted[28:]
+    assert highlighted.endswith('</pre></div>\n')
+    highlighted = highlighted[:-13]
+    self.body.append(tag + highlighted)
+
+    self.body.append('</pre>')
+    # otherwise the raw content is inserted and
+    # the `depart_swish_query_node` method is executed
+    # (see the depart_swish_code_node method for more details)
+    raise nodes.SkipNode
 
 
 def starttag(self, node, tagname, suffix='\n', empty=False, **attributes):
@@ -523,14 +551,15 @@ class SWISH(Directive):
             with open(path_localised, 'r') as f:
                 contents = f.read()
 
+        lang = 'Prolog'
         pre = swish_code(contents.strip(), contents,
                          ids=['{}-code'.format(
                              nodes.make_id(code_filename_id))],
                          label=code_filename_id,
+                         language=lang,
                          **attributes)
-
         # create the outer swish node
-        box = swish_box()
+        box = swish_box(language=lang)  # needed for syntax colouring
         # assign label and id (`ids=[nodes.make_id(code_filename_id)]`)
         self.options['name'] = code_filename_id
         self.add_name(box)
