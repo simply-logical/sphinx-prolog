@@ -165,6 +165,7 @@ query-id: swishq:1.1.1 swishq:1.1.2 swishq:1.1.3
 inherit-id: swish:4.5.6 swish:4.5.7 swish:4.5.8
 source-text-start: 4.5.6-start
 source-text-end: 4.5.6-end
+hide-examples: true
 ---
 optional :- content.
 ```
@@ -207,6 +208,10 @@ The `swish` extension uses the following [Sphinx] configuration parameters:
 * `sl_swish_url` -- specifies the URL of the [SWISH] execution server
   (`https://swish.simply-logical.space/` by default, which is hardcoded in the
   the Simply Logical SWISH JavaScript `lpn.js`).
+* `sl_swish_hide_examples` (*optional*, default `False`) -- **globally**
+  toggles visibility of the `/** <examples> ... */` block in SWISH code boxes.
+  This behaviour can also be changed *locally* for each individual code box
+  with the `hide-examples` parameter of the `swish` directive (see below).
 
 ### Arguments, parameters and content ###
 
@@ -261,6 +266,9 @@ changes and automatically regenerates the affected pages.
   extension whose content will be (implicitly) appended to the main code of
   this code block (e.g., `source-text-end: 4.5.6-end`).
   (The suffix logic is handled by the `lpn.js` JavaScript.)
+* `hide-examples` (*not set*, `true` or `false`) -- prevents the
+  `/** <examples> ... */` block from being displayed (when not set, it is
+  controlled by the `sl_swish_hide_examples` configuration parameter).
 
 #### Query box ####
 

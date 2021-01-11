@@ -23,6 +23,10 @@ _LABEL_RGX = '<(swishq:\S+)>'
 LABEL_PATTERN = re.compile(_LABEL_RGX, flags=(re.M | re.I | re.S))
 _LABEL_STRING_RGX = '(?:^.+<)(\S+)(?:>\s*$)'
 LABEL_STRING_PATTERN = re.compile(_LABEL_STRING_RGX, flags=(re.M | re.I | re.S))
+_HIDE_EXAMPLES_RGX = ('$\s*^\s*<span class="cm">\s*/\*\*\s*&lt;examples&gt;\s*'
+                      '</span>.*?<span class="cm">\s*\*/\s*</span>')
+HIDE_EXAMPLES_PATTERN = re.compile(
+    _HIDE_EXAMPLES_RGX, flags=(re.M | re.I | re.S))
 
 
 #### SWISH directive ##########################################################
@@ -196,6 +200,29 @@ def visit_swish_code_node(self, node):
     highlighted = highlighted[28:]
     assert highlighted.endswith('</pre></div>\n')
     highlighted = highlighted[:-13]
+
+    # hide the examples block
+    hide_examples_global = env.config.sl_swish_hide_examples
+    assert isinstance(hide_examples_global, bool)
+    assert 'hide_examples' in node.attributes
+    hide_examples_local = node.attributes['hide_examples']
+    assert isinstance(hide_examples_local, bool) or hide_examples_local is None
+    if hide_examples_global and hide_examples_local in (None, True):
+        hide_examples = True
+    elif hide_examples_global and hide_examples_local is False:
+        hide_examples = False
+    elif not hide_examples_global and hide_examples_local:
+        hide_examples = True
+    elif not hide_examples_global and hide_examples_local in (None, False):
+        hide_examples = False
+    else:
+        assert False
+    # hide each occurrence of the examples block
+    if hide_examples:
+        highlighted = HIDE_EXAMPLES_PATTERN.sub(
+            lambda x: '<div class="hide-examples">{}</div>'.format(x.group(0)),
+            highlighted)
+
     self.body.append(tag + highlighted)
 
     self.body.append('</pre>')
@@ -348,6 +375,7 @@ class SWISH(Directive):
           :inherit-id: swish:4.1.1 [swish:4.1.2 swish:4.1.3] (optional)
           :source-text-start: 4.1.1-start (optional)
           :source-text-end: 4.1.1-end (optional)
+          :hide-examples: false
 
     All of the ids need to be Prolog code files **with** the `swish:` prefix
     and **without the** `.pl` **extension**, located in a single directory.
@@ -358,6 +386,9 @@ class SWISH(Directive):
     specifies the URL of the execution swish server. If one is not given,
     the default URL hardcoded in the swish JavaScript library will be used
     (i.e., `https://swish.simply-logical.space/`).
+
+    Optionally, `sl_swish_hide_examples` can globally toggle the visibility of
+    the *example* blocks in SWISH code blocks.
 
     This directive operates on three Sphinx environmental variables:
 
@@ -384,7 +415,8 @@ class SWISH(Directive):
                    'query-id': directives.unchanged,
                    'inherit-id': directives.unchanged,
                    'source-text-start': directives.unchanged,
-                   'source-text-end': directives.unchanged}
+                   'source-text-end': directives.unchanged,
+                   'hide-examples': directives.unchanged}
 
     def run(self):
         """Builds a swish box."""
@@ -527,6 +559,13 @@ class SWISH(Directive):
             # clean out the examples section
             raw_content = strip_examples_block(contents)
             attributes['source_text_end'] = '\n{}'.format(raw_content)
+
+        # hide examples locally
+        hide_examples = options.get('hide-examples', None)
+        if hide_examples == '':
+            hide_examples = True
+        assert isinstance(hide_examples, bool) or hide_examples is None
+        attributes['hide_examples'] = hide_examples
 
         # if the content is given explicitly, use it instead of loading a file
         if self.content:
@@ -1294,6 +1333,7 @@ def setup(app):
     # register the two Sphinx config values used for the extension
     app.add_config_value('sl_code_directory', None, 'env')
     app.add_config_value('sl_swish_url', '', 'env')
+    app.add_config_value('sl_swish_hide_examples', False, 'env')
 
     # register the custom docutils nodes with Sphinx
     app.add_node(
