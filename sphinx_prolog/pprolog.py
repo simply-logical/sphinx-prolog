@@ -18,7 +18,7 @@ from pygments.lexer import bygroups
 from pygments.lexers import PrologLexer
 from pygments.token import Name, Operator, Punctuation, String, Text
 
-from sl import VERSION
+import sphinx_prolog
 
 # namespace highlighting fix
 _A = r'([a-z]+)(:)'
@@ -74,4 +74,4 @@ def setup(app):
     Sets up the Sphinx extension for the *pseudo Prolog* (`pProlog`) lexer.
     """
     app.add_lexer('pProlog', pPrologLexer)  # startinline=True
-    return {'version': VERSION}
+    return {'version': sphinx_prolog.VERSION}

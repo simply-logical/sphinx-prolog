@@ -8,7 +8,9 @@ Implements the `infobox` directive for Jupyter Book and Sphinx.
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 
-from sl import VERSION
+import sphinx_prolog
+
+STATIC_FILE = 'sphinx-prolog.css'
 
 #### Infobox directive ########################################################
 
@@ -233,6 +235,16 @@ def assign_reference_title(app, document):
 #### Extension setup ##########################################################
 
 
+def include_static_files(app):
+    """
+    Copies the static css file required by this extension.
+    (Attached to the `builder-inited` Sphinx event.)
+    """
+    file_path = sphinx_prolog.get_static_path(STATIC_FILE)
+    if file_path not in app.config.html_static_path:
+        app.config.html_static_path.append(file_path)
+
+
 def setup(app):
     """
     Sets up the Sphinx extension for the `infobox` directive.
@@ -252,9 +264,9 @@ def setup(app):
     )
 
     # ensure the required auxiliary files are included in the Sphinx build
-    if 'jupyter_book' not in app.config.extensions:
-        # Jupyter Books takes care of it
-        app.add_css_file('sl.css')
+    app.connect('builder-inited', include_static_files)
+    if not sphinx_prolog.is_css_registered(app, STATIC_FILE):
+        app.add_css_file(STATIC_FILE)
 
     # register the custom directives with Sphinx
     app.add_directive('infobox', Infobox)
@@ -262,4 +274,4 @@ def setup(app):
     # ensure that each ided infobox can be referenced by its title
     app.connect('doctree-read', assign_reference_title)
 
-    return {'version': VERSION}
+    return {'version': sphinx_prolog.VERSION}

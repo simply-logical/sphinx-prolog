@@ -1,0 +1,9 @@
+include README.md
+include LICENCE
+include sphinx_prolog/_static/sphinx-prolog.css
+include sphinx_prolog/_static/jquery-ui.min.css
+include sphinx_prolog/_static/jquery-ui.min.js
+include sphinx_prolog/_static/lpn.css
+include sphinx_prolog/_static/lpn.js
+include sphinx_prolog/_static/lpn/lpn-run.png
+include sphinx_prolog/_static/lpn/lpn-close.png

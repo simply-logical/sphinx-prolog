@@ -1,3 +1,14 @@
+[![Licence][licence-badge]][licence-link]
+[![Python][python-badge]][python-link]
+[![PyPI][pypi-badge]][pypi-link]
+
+[licence-badge]: https://img.shields.io/github/license/simply-logical/sphinx-prolog.svg
+[licence-link]: https://github.com/simply-logical/sphinx-prolog/blob/master/LICENCE
+[python-badge]: https://img.shields.io/badge/python-3.5-blue.svg
+[python-link]: https://github.com/simply-logical/sphinx-prolog
+[pypi-badge]: https://img.shields.io/pypi/v/sphinx-prolog.svg
+[pypi-link]: https://pypi.org/project/sphinx-prolog
+
 # :open_book: Simply Logical extensions for Jupyter Book (Sphinx) #
 
 This repository holds a collection of [Sphinx] extensions designed for the
@@ -14,10 +25,28 @@ It implements the following functionality:
   and **directives** -- see [MyST overview] for more details.
   For use with [Sphinx], please refer to the [reStructuredText] syntax.
 
+---
+
+To get started with `sphinx-prolog`, first install it with `pip`:
+```bash
+pip install sphinx-prolog
+```
+then, add desired `sphinx_prolog` extensions to the Sphinx `extensions` list
+in your `conf.py`
+```Python
+...
+extensions = ['sphinx_prolog.infobox',
+              'sphinx_prolog.solex',
+              'sphinx_prolog.swish',
+              'sphinx_prolog.pprolog',
+              ]
+...
+```
+
 ## :information_source: Infobox directive ##
 
-The [`infobox.py`](infobox.py) module defines the `infobox` directive used for
-building *information boxes*.
+The [`infobox.py`](sphinx_prolog/infobox.py) module defines the `infobox`
+directive used for building *information boxes*.
 
 ### Usage ###
 
@@ -54,8 +83,9 @@ The `infobox` directive also requires a non-empty content.
 
 ## :trophy: Exercise and Solution directives ##
 
-The [`solex.py`](solex.py) module defines the `exercise` and `solution`
-directives used for building **numbered** *exercise* and *solution* boxes.
+The [`solex.py`](sphinx_prolog/solex.py) module defines the `exercise` and
+`solution` directives used for building **numbered** *exercise* and *solution*
+boxes.
 These elements can be referenced with the standard `ref` and `numref` roles.
 
 ### Usage ###
@@ -146,10 +176,10 @@ changes and automatically regenerates the affected pages.
 
 ## :floppy_disk: SWISH directive ##
 
-The [`swish.py`](swish.py) module defines the `swish` and `swish-query`
-directives, as well as the `swish-query` role, all of which are used for
-building *interactive [SWI Prolog] boxes* executed directly in the browser
-with [SWISH].
+The [`swish.py`](sphinx_prolog/swish.py) module defines the `swish` and
+`swish-query` directives, as well as the `swish-query` role, all of which are
+used for building *interactive [SWI Prolog] boxes* executed directly in the
+browser with [SWISH].
 
 ### Usage ###
 
@@ -207,7 +237,8 @@ The `swish` extension uses the following [Sphinx] configuration parameters:
   files with content ([SWI Prolog] code) of each [SWISH] code box; and
 * `sl_swish_url` -- specifies the URL of the [SWISH] execution server
   (`https://swish.simply-logical.space/` by default, which is hardcoded in the
-  the Simply Logical SWISH JavaScript `lpn.js`).
+  the Simply Logical SWISH JavaScript
+  [`lpn.js`](sphinx_prolog/_static/lpn.js)).
 * `sl_swish_hide_examples` (*optional*, default `False`) -- **globally**
   toggles visibility of the `/** <examples> ... */` block in SWISH code boxes.
   This behaviour can also be changed *locally* for each individual code box
@@ -234,14 +265,15 @@ changes and automatically regenerates the affected pages.
 [SWISH] code blocks also have a number of **optional** parameters:
 
 * `query-text` -- specifies a collection of queries to be implicitly embedded
-  in the [SWISH] box (handled by the `lpn.js` JavaScript).
+  in the [SWISH] box (handled by the [`lpn.js`](sphinx_prolog/_static/lpn.js)
+  JavaScript).
   If both the `/** <examples> ... */` block (in the [SWISH] box content) and
   the `query-text` parameter are provided, the latter takes precedence.
   However, the `query-text` parameter works in conjunction with the
   *code box*'s `query-id` and *query box*'s `source-id` parameters.
 * `query-id` -- specifies (space separated) **id(s)** of query block(s) whose
   content will be used to populate the queries of this [SWISH] box
-  (handled by the `lpn.js` JavaScript).
+  (handled by the [`lpn.js`](sphinx_prolog/_static/lpn.js) JavaScript).
   A [SWISH] code box can import a single (e.g., `query-id: swishq:4.5.6`) or
   multiple (e.g., `query-id: swishq:4.5.6 swishq:4.5.7 swishq:4.5.8`) query
   blocks.
@@ -257,15 +289,18 @@ changes and automatically regenerates the affected pages.
   A [SWISH] box can inherit from a single (e.g., `inherit-id: swish:4.5.6`) or
   multiple (e.g., `inherit-id: swish:4.5.6 swish:4.5.7 swish:4.5.8`) code
   blocks.
-  (The inheritance logic is handled by the `lpn.js` JavaScript.)
+  (The inheritance logic is handled by the
+  [`lpn.js`](sphinx_prolog/_static/lpn.js) JavaScript.)
 * `source-text-start` -- specifies the code **file name** without the `.pl`
   extension whose content will be (implicitly) prepended to the main code of
   this code block (e.g., `source-text-start: 4.5.6-start`).
-  (The prefix logic is handled by the `lpn.js` JavaScript.)
+  (The prefix logic is handled by the [`lpn.js`](sphinx_prolog/_static/lpn.js)
+  JavaScript.)
 * `source-text-end` -- specifies the code **file name** without the `.pl`
   extension whose content will be (implicitly) appended to the main code of
   this code block (e.g., `source-text-end: 4.5.6-end`).
-  (The suffix logic is handled by the `lpn.js` JavaScript.)
+  (The suffix logic is handled by the [`lpn.js`](sphinx_prolog/_static/lpn.js)
+  JavaScript.)
 * `hide-examples` (*not set*, `true` or `false`) -- prevents the
   `/** <examples> ... */` block from being displayed (when not set, it is
   controlled by the `sl_swish_hide_examples` configuration parameter).
@@ -284,8 +319,8 @@ Additionally, the [SWISH] query block **directive** has one **optional**
 parameter:
 
 * `source-id` -- specifies (space separated) **id(s)** of code block(s) that
-  will be injected with this particular query (handled by the `lpn.js`
-  JavaScript).
+  will be injected with this particular query (handled by the
+  [`lpn.js`](sphinx_prolog/_static/lpn.js) JavaScript).
   A [SWISH] query box can indicate a single (e.g., `source-id: swish:1.0.0`) or
   multiple (e.g., `source-id: swish:1.0.0 swish:1.0.1 swish:1.0.2`) code
   blocks.
@@ -297,8 +332,8 @@ parameter:
 
 ## :test_tube: pseudo Prolog syntax highlighting ##
 
-The [`pprolog.py`](pprolog.py) module defines code block syntax highlighting
-for *pseudo Prolog* (`pProlog`).
+The [`pprolog.py`](sphinx_prolog/pprolog.py) module defines code block syntax
+highlighting for *pseudo Prolog* (`pProlog`).
 
 ### Usage ###
 
@@ -314,11 +349,17 @@ my,pseudo,prolog;-code.
 
 ---
 
-> The CSS and JS files used by this [Sphinx] extension (namely `sl.css`,
-  `lpn.css` and `lpn.js`, as well as their dependencies `jquery-ui.min.css` and
-  `jquery-ui.min.js`, and their auxiliary files `Actions-system-run-icon.png`
-  and `close.png`) can be found in the `_static` directory of the
-  [simply-logical/simply-logical] repository.
+> The CSS and JS files used by this [Sphinx] extension (namely
+  [`sphinx-prolog.css`](sphinx_prolog/_static/sphinx-prolog.css),
+  [`lpn.css`](sphinx_prolog/_static/lpn.css) and
+  [`lpn.js`](sphinx_prolog/_static/lpn.js), as well as their dependencies
+  [`jquery-ui.min.css`](sphinx_prolog/_static/jquery-ui.min.css) and
+  [`jquery-ui.min.js`](sphinx_prolog/_static/jquery-ui.min.js),
+  and their auxiliary files
+  [`lpn-run.png`](sphinx_prolog/_static/lpn/lpn-run.png) and
+  [`lpn-close.png`](sphinx_prolog/_static/lpn/lpn-close.png))
+  can be found in the [`sphinx_prolog/_static`](sphinx_prolog/_static)
+  directory of this repository.
 
 [sphinx]: https://www.sphinx-doc.org/
 [jupyter book]: https://jupyterbook.org/

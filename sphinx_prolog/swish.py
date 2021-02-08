@@ -12,7 +12,12 @@ import sys
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 
-from sl import VERSION, file_exists
+import sphinx_prolog
+
+STATIC_CSS_FILES = ['sphinx-prolog.css', 'lpn.css', 'jquery-ui.min.css']
+STATIC_JS_FILES = ['lpn.js', 'jquery-ui.min.js']
+STATIC_FILES = (STATIC_CSS_FILES + STATIC_JS_FILES
+                + ['lpn/lpn-run.png', 'lpn/lpn-close.png'])
 
 if sys.version_info >= (3, 0):
     unicode = str
@@ -537,7 +542,7 @@ class SWISH(Directive):
             if not source_start.endswith('.pl'):
                 source_start += '.pl'
             source_start_path = os.path.join(localised_directory, source_start)
-            file_exists(source_start_path)
+            sphinx_prolog.file_exists(source_start_path)
             # memorise the association between the document and code box
             self.memorise_code(source_start, source_start_path)
             with open(source_start_path, 'r') as f:
@@ -551,7 +556,7 @@ class SWISH(Directive):
             if not source_end.endswith('.pl'):
                 source_end += '.pl'
             source_end_path = os.path.join(localised_directory, source_end)
-            file_exists(source_end_path)
+            sphinx_prolog.file_exists(source_end_path)
             # memorise the association between the document and code box
             self.memorise_code(source_end, source_end_path)
             with open(source_end_path, 'r') as f:
@@ -578,7 +583,7 @@ class SWISH(Directive):
             # compose the full path to the code file and ensure it exists
             path_localised = os.path.join(localised_directory, code_filename)
             # path_original = os.path.join(sl_code_directory, code_filename)
-            file_exists(path_localised)
+            sphinx_prolog.file_exists(path_localised)
 
             # memorise the association between the document (a content source
             # file) and the code box -- this is used for watching for code file
@@ -1326,6 +1331,17 @@ def check_sourceid_correctness(app, doctree, docname):
 #### Extension setup ##########################################################
 
 
+def include_static_files(app):
+    """
+    Copies the static files required by this extension.
+    (Attached to the `builder-inited` Sphinx event.)
+    """
+    for file_name in STATIC_FILES:
+        file_path = sphinx_prolog.get_static_path(file_name)
+        if file_path not in app.config.html_static_path:
+            app.config.html_static_path.append(file_path)
+
+
 def setup(app):
     """
     Sets up the Sphinx extension for the `swish` directive.
@@ -1356,13 +1372,13 @@ def setup(app):
     )
 
     # ensure the required auxiliary files are included in the Sphinx build
-    if 'jupyter_book' not in app.config.extensions:
-        # Jupyter Books takes care of it
-        app.add_css_file('sl.css')
-        app.add_css_file('lpn.css')
-        app.add_js_file('lpn.js')
-        app.add_css_file('jquery-ui.min.css')
-        app.add_js_file('jquery-ui.min.js')
+    app.connect('builder-inited', include_static_files)
+    for css_file in STATIC_CSS_FILES:
+        if not sphinx_prolog.is_css_registered(app, css_file):
+            app.add_css_file(css_file)
+    for js_file in STATIC_JS_FILES:
+        if not sphinx_prolog.is_js_registered(app, js_file):
+            app.add_js_file(js_file)
 
     # register the custom role and directives with Sphinx
     app.add_role('swish-query', swish_q)
@@ -1380,4 +1396,4 @@ def setup(app):
     app.connect('env-merge-info', merge_swish_query)
     app.connect('doctree-resolved', check_sourceid_correctness)
 
-    return {'version': VERSION}
+    return {'version': sphinx_prolog.VERSION}
