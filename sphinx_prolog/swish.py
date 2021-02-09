@@ -207,7 +207,7 @@ def visit_swish_code_node(self, node):
     highlighted = highlighted[:-13]
 
     # hide the examples block
-    hide_examples_global = env.config.sl_swish_hide_examples
+    hide_examples_global = env.config.sp_swish_hide_examples
     assert isinstance(hide_examples_global, bool)
     assert 'hide_examples' in node.attributes
     hide_examples_local = node.attributes['hide_examples']
@@ -381,19 +381,23 @@ class SWISH(Directive):
           :source-text-start: 4.1.1-start (optional)
           :source-text-end: 4.1.1-end (optional)
           :hide-examples: false
+          :build-file: false
 
     All of the ids need to be Prolog code files **with** the `swish:` prefix
     and **without the** `.pl` **extension**, located in a single directory.
-    The directory is provided to Sphinx via the `sl_code_directory` config
+    The directory is provided to Sphinx via the `sp_code_directory` config
     setting and is **required**.
 
-    Optionally, the `sl_swish_url` config setting can be provided, which
+    Optionally, the `sp_swish_url` config setting can be provided, which
     specifies the URL of the execution swish server. If one is not given,
     the default URL hardcoded in the swish JavaScript library will be used
     (i.e., `https://swish.simply-logical.space/`).
 
-    Optionally, `sl_swish_hide_examples` can globally toggle the visibility of
+    Optionally, `sp_swish_hide_examples` can globally toggle the visibility of
     the *example* blocks in SWISH code blocks.
+
+    If any of the code blocks uses `build-file` set to `true`,
+    the `sp_swish_book_url` config setting must be provided.
 
     This directive operates on three Sphinx environmental variables:
 
@@ -421,7 +425,8 @@ class SWISH(Directive):
                    'inherit-id': directives.unchanged,
                    'source-text-start': directives.unchanged,
                    'source-text-end': directives.unchanged,
-                   'hide-examples': directives.unchanged}
+                   'hide-examples': directives.unchanged,
+                   'build-file': directives.unchanged}
 
     def run(self):
         """Builds a swish box."""
@@ -438,18 +443,18 @@ class SWISH(Directive):
             env.sl_has_swish.add(env.docname)
 
         # retrieve the path to the directory holding the code files
-        sl_code_directory = env.config.sl_code_directory
-        if sl_code_directory is None:
-            raise RuntimeError('The sl_code_directory sphinx config value '
+        sp_code_directory = env.config.sp_code_directory
+        if sp_code_directory is None:
+            raise RuntimeError('The sp_code_directory sphinx config value '
                                'must be set.')
         # localise the directory if given as an absolute path
-        if sl_code_directory.startswith('/'):
-            localised_directory = '.' + sl_code_directory
+        if sp_code_directory.startswith('/'):
+            localised_directory = '.' + sp_code_directory
         else:
-            localised_directory = sl_code_directory
+            localised_directory = sp_code_directory
         # check whether the directory exists
         if not os.path.exists(localised_directory):
-            raise RuntimeError('The sl_code_directory ({}) does not '
+            raise RuntimeError('The sp_code_directory ({}) does not '
                                'exist.'.format(localised_directory))
 
         # get the code file name for this particular swish box
@@ -582,7 +587,7 @@ class SWISH(Directive):
         else:
             # compose the full path to the code file and ensure it exists
             path_localised = os.path.join(localised_directory, code_filename)
-            # path_original = os.path.join(sl_code_directory, code_filename)
+            # path_original = os.path.join(sp_code_directory, code_filename)
             sphinx_prolog.file_exists(path_localised)
 
             # memorise the association between the document (a content source
@@ -811,9 +816,9 @@ def inject_swish_detect(app, doctree, docname):
         return
 
     # check for a user-specified SWISH server URL in the config
-    sl_swish_url = env.config.sl_swish_url
-    if sl_swish_url:
-        call = 'swish:"{:s}"'.format(sl_swish_url)
+    sp_swish_url = env.config.sp_swish_url
+    if sp_swish_url:
+        call = 'swish:"{:s}"'.format(sp_swish_url)
     else:
         call = ''
     swish_function = ('\n\n    <script>$(function() {{ $(".swish").LPN('
@@ -1347,9 +1352,10 @@ def setup(app):
     Sets up the Sphinx extension for the `swish` directive.
     """
     # register the two Sphinx config values used for the extension
-    app.add_config_value('sl_code_directory', None, 'env')
-    app.add_config_value('sl_swish_url', '', 'env')
-    app.add_config_value('sl_swish_hide_examples', False, 'env')
+    app.add_config_value('sp_code_directory', None, 'env')
+    app.add_config_value('sp_swish_url', '', 'env')
+    app.add_config_value('sp_swish_book_url', None, 'env')
+    app.add_config_value('sp_swish_hide_examples', False, 'env')
 
     # register the custom docutils nodes with Sphinx
     app.add_node(

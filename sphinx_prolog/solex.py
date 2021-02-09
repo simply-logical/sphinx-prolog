@@ -277,7 +277,7 @@ class Exercise(Directive):
     If the `exercise` directive has content, it will be used to fill in the
     exercise box. Otherwise, a file name with striped `ex:` and appended `.md`
     will be located in the exercise directory provided by the user through the
-    `sl_exercise_directory` Sphinx configuration parameter.
+    `sp_exercise_directory` Sphinx configuration parameter.
 
     Notes:
         `env.domaindata['std']` and `env.domains['std']` hold the reference
@@ -400,9 +400,9 @@ def read_exercise(env, label):
     Reads in a file containing the exercise linked to the `label`.
     """
     # checks whether the exercise location is set by the user
-    sl_ex_directory = env.config.sl_exercise_directory
+    sl_ex_directory = env.config.sp_exercise_directory
     if sl_ex_directory is None:
-        raise RuntimeError('The sl_exercise_directory sphinx config '
+        raise RuntimeError('The sp_exercise_directory sphinx config '
                            'value must be set.')
     # localise the directory if given as an absolute path
     if sl_ex_directory.startswith('/'):
@@ -411,7 +411,7 @@ def read_exercise(env, label):
         localised_directory = sl_ex_directory
     # check whether the directory exists
     if not os.path.exists(localised_directory):
-        raise RuntimeError('The sl_exercise_directory ({}) does not '
+        raise RuntimeError('The sp_exercise_directory ({}) does not '
                            'exist.'.format(localised_directory))
 
     # format the filename
@@ -597,7 +597,7 @@ def setup(app):
     Sets up the Sphinx extension for the `exercise` and `solution` directives.
     """
     # register the two Sphinx config values used for the extension
-    app.add_config_value('sl_exercise_directory', None, 'env')
+    app.add_config_value('sp_exercise_directory', None, 'env')
 
     # register the custom docutils nodes with Sphinx
     app.add_enumerable_node(

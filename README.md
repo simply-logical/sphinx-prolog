@@ -45,8 +45,8 @@ extensions = ['sphinx_prolog.infobox',
 
 ## :information_source: Infobox directive ##
 
-The [`infobox.py`](sphinx_prolog/infobox.py) module defines the `infobox`
-directive used for building *information boxes*.
+The [`sphinx_prolog.infobox`](sphinx_prolog/infobox.py) module defines the
+`infobox` directive used for building *information boxes*.
 
 ### Usage ###
 
@@ -83,9 +83,9 @@ The `infobox` directive also requires a non-empty content.
 
 ## :trophy: Exercise and Solution directives ##
 
-The [`solex.py`](sphinx_prolog/solex.py) module defines the `exercise` and
-`solution` directives used for building **numbered** *exercise* and *solution*
-boxes.
+The [`sphinx_prolog.solex`](sphinx_prolog/solex.py) module defines the
+`exercise` and `solution` directives used for building **numbered** *exercise*
+and *solution* boxes.
 These elements can be referenced with the standard `ref` and `numref` roles.
 
 ### Usage ###
@@ -140,7 +140,7 @@ solution to an exercise with id `ex:2.9` can be referenced with `sol:2.9`.
 
 The `solex` extension uses the following [Sphinx] configuration parameters:
 
-* `sl_exercise_directory` -- defines the path to a directory holding files with
+* `sp_exercise_directory` -- defines the path to a directory holding files with
   content of each exercise;
 * `numfig_format.exercise` -- defines a custom formatter of the exercise
   `numref` role, e.g., `"Question %s"` where `%s` will be automatically
@@ -161,7 +161,7 @@ automatically).
 The content of an exercise or a solution directive **can be empty**, in which
 case the `solex` extension looks for a content file whose name is derived from
 the exercise id and which should be located in the directory specified with the
-`sl_exercise_directory` configuration parameter.
+`sp_exercise_directory` configuration parameter.
 The exercise file name is expected to be the exercise id without the `ex:`
 prefix and with the `.md` extension.
 For example, for an exercise with `ex:my_exercise` id, the content file should
@@ -176,9 +176,9 @@ changes and automatically regenerates the affected pages.
 
 ## :floppy_disk: SWISH directive ##
 
-The [`swish.py`](sphinx_prolog/swish.py) module defines the `swish` and
-`swish-query` directives, as well as the `swish-query` role, all of which are
-used for building *interactive [SWI Prolog] boxes* executed directly in the
+The [`sphinx_prolog.swish`](sphinx_prolog/swish.py) module defines the `swish`
+and `swish-query` directives, as well as the `swish-query` role, all of which
+are used for building *interactive [SWI Prolog] boxes* executed directly in the
 browser with [SWISH].
 
 ### Usage ###
@@ -196,6 +196,7 @@ inherit-id: swish:4.5.6 swish:4.5.7 swish:4.5.8
 source-text-start: 4.5.6-start
 source-text-end: 4.5.6-end
 hide-examples: true
+build-file: false
 ---
 optional :- content.
 ```
@@ -233,16 +234,22 @@ hyper-link.
 
 The `swish` extension uses the following [Sphinx] configuration parameters:
 
-* `sl_code_directory` (**required**) -- defines the path to a directory holding
+* `sp_code_directory` (**required**) -- defines the path to a directory holding
   files with content ([SWI Prolog] code) of each [SWISH] code box; and
-* `sl_swish_url` -- specifies the URL of the [SWISH] execution server
+* `sp_swish_url` -- specifies the URL of the [SWISH] execution server
   (`https://swish.simply-logical.space/` by default, which is hardcoded in the
   the Simply Logical SWISH JavaScript
   [`lpn.js`](sphinx_prolog/_static/lpn.js)).
-* `sl_swish_hide_examples` (*optional*, default `False`) -- **globally**
+* `sp_swish_hide_examples` (*optional*, default `False`) -- **globally**
   toggles visibility of the `/** <examples> ... */` block in SWISH code boxes.
   This behaviour can also be changed *locally* for each individual code box
   with the `hide-examples` parameter of the `swish` directive (see below).
+* `sp_swish_book_url` (**required** when using [SWISH] code boxes with the
+  `build-file` parameter set to `true`) -- a *base URL* under which the book
+  will be deployed.
+  It is used to compose links to Prolog code files that need to be accessed
+  by file-based [SWISH] boxes.
+  (See the description of the `build-file` parameter for more details.)
 
 ### Arguments, parameters and content ###
 
@@ -254,7 +261,7 @@ This id **must** start with the `swish:` prefix.
 The content of a [SWISH] box can **either** be provided explicitly within the
 directive, **or** -- when the content is left empty -- it is pulled from a code
 file whose name is derived from the code box id and which should be located in
-the directory specified via the `sl_code_directory` configuration parameter.
+the directory specified via the `sp_code_directory` configuration parameter.
 The code file name is expected to be the code block id **without** the `swish:`
 prefix and **with** the `.pl` extension.
 For example, for a code block with `swish:my_code` id, the code file should be
@@ -303,7 +310,20 @@ changes and automatically regenerates the affected pages.
   JavaScript.)
 * `hide-examples` (*not set*, `true` or `false`) -- prevents the
   `/** <examples> ... */` block from being displayed (when not set, it is
-  controlled by the `sl_swish_hide_examples` configuration parameter).
+  controlled by the `sp_swish_hide_examples` configuration parameter).
+* `build-file` (*not set*, `true` or `false`) -- long Prolog scripts cannot be
+  loaded into [SWISH] boxes since URL requests have 2048 character limit.
+  To allow for long Prolog scripts, all of the relevant code fragments are
+  processed by this Python extension and placed in a single Prolog file.
+  This file is then loaded into a [SWISH] box by its URL, which is composed
+  from the book deployment URL provided by the user via the `sp_swish_book_url`
+  configuration parameter and the Prolog script storage directory
+  (`_sources/prolog_build_files/...`).
+  This functionality has to be **explicitly** enabled by setting the
+  `build-file` parameter to `true`.
+  **Note: such [SWISH] boxes will not work when browsing local
+  documentation/book builds since the code files must be hosted on a server
+  accessible by [SWISH].**
 
 #### Query box ####
 
@@ -332,8 +352,8 @@ parameter:
 
 ## :test_tube: pseudo Prolog syntax highlighting ##
 
-The [`pprolog.py`](sphinx_prolog/pprolog.py) module defines code block syntax
-highlighting for *pseudo Prolog* (`pProlog`).
+The [`sphinx_prolog.pprolog`](sphinx_prolog/pprolog.py) module defines code
+block syntax highlighting for *pseudo Prolog* (`pProlog`).
 
 ### Usage ###
 
