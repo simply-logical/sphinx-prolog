@@ -319,6 +319,11 @@ changes and automatically regenerates the affected pages.
   from the book deployment URL provided by the user via the `sp_swish_book_url`
   configuration parameter and the Prolog script storage directory
   (`_sources/prolog_build_files/...`).
+  The built Prolog files are stored under `src/code/temp` and then copied to
+  the target directory (`_sources/prolog_build_files` located, for example,
+  under `_build/html` for *html* builds) -- you may need to explicitly exclude
+  this path in the Sphinx configuration file by adding it to
+  `exclude_patterns`.
   This functionality has to be **explicitly** enabled by setting the
   `build-file` parameter to `true`.
   **Note: such [SWISH] boxes will not work when browsing local
