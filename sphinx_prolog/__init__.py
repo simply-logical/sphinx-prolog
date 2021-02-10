@@ -24,7 +24,7 @@ extension was particularly useful for developing the `exercise` directive.
 
 import os
 
-VERSION = '0.3'
+VERSION = '0.4'
 __version__ = VERSION
 
 _STATIC_PATH = os.path.join(os.path.dirname(__file__), '_static')
