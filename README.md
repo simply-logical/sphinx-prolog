@@ -1,6 +1,7 @@
 [![Licence][licence-badge]][licence-link]
 [![Python][python-badge]][python-link]
 [![PyPI][pypi-badge]][pypi-link]
+[![Documentation][doc-badge]][doc-link]
 
 [licence-badge]: https://img.shields.io/github/license/simply-logical/sphinx-prolog.svg
 [licence-link]: https://github.com/simply-logical/sphinx-prolog/blob/master/LICENCE
@@ -8,6 +9,8 @@
 [python-link]: https://github.com/simply-logical/sphinx-prolog
 [pypi-badge]: https://img.shields.io/pypi/v/sphinx-prolog.svg
 [pypi-link]: https://pypi.org/project/sphinx-prolog
+[doc-badge]: https://img.shields.io/badge/read-documentation-blue.svg
+[doc-link]: https://book-template.simply-logical.space
 
 # :open_book: Simply Logical extensions for Jupyter Book (Sphinx) #
 
@@ -20,6 +23,16 @@ It implements the following functionality:
   *exercises* and their *solutions*; and
 * **interactive Prolog code blocks** -- [SWI Prolog] code blocks that can be
   executed directly in the browser with [SWISH].
+
+**This readme file holds a technical documentation of the `sphinx-prolog`
+extension.
+We also publish a [Jupyter Book] template for authoring interactive Prolog
+content that simultaneously serves as a _user guide_ to the functionality
+implemented by this extension.
+The template is available in the [simply-logical/prolog-book-template] GitHub
+repository and the built guide can be found at
+<https://book-template.simply-logical.space/>;
+the "`sphinx-prolog` Extension" section should be of particular interest.**
 
 > This *readme* file uses [Jupyter Book]'s [MyST Markdown] syntax for **roles**
   and **directives** -- see [MyST overview] for more details.
@@ -394,3 +407,4 @@ my,pseudo,prolog;-code.
 [reStructuredText]: https://docutils.sourceforge.io/rst.html
 [myst overview]: https://jupyterbook.org/content/myst.html
 [simply-logical/simply-logical]: https://github.com/simply-logical/simply-logical
+[simply-logical/prolog-book-template]: https://github.com/simply-logical/prolog-book-template
