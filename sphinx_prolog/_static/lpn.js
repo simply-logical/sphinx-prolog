@@ -7,7 +7,7 @@
  * @requires jquery
  */
 
-var SWISH = "https://swish.simply-logical.space/";
+var SWISH = "https://swish.swi-prolog.org/";
 var RE_EX = /\s*^\/\*\*\s*<examples>\s*$.*?(?!^\*\/\s*$).*?^\*\/\s*$\s*/mis;
 var RE_Q = /^\s*(?:\?\s*-)\s*(?:.+?)\s*(?:\.)/mis;
 

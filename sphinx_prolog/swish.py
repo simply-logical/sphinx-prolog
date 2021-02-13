@@ -402,7 +402,7 @@ class SWISH(Directive):
     Optionally, the `sp_swish_url` config setting can be provided, which
     specifies the URL of the execution swish server. If one is not given,
     the default URL hardcoded in the swish JavaScript library will be used
-    (i.e., `https://swish.simply-logical.space/`).
+    (i.e., `https://swish.swi-prolog.org/`).
 
     Optionally, `sp_swish_hide_examples` can globally toggle the visibility of
     the *example* blocks in SWISH code blocks.

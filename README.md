@@ -250,8 +250,8 @@ The `swish` extension uses the following [Sphinx] configuration parameters:
 * `sp_code_directory` (**required**) -- defines the path to a directory holding
   files with content ([SWI Prolog] code) of each [SWISH] code box; and
 * `sp_swish_url` -- specifies the URL of the [SWISH] execution server
-  (`https://swish.simply-logical.space/` by default, which is hardcoded in the
-  the Simply Logical SWISH JavaScript
+  (`https://swish.swi-prolog.org/` by default, which is hard-coded in the
+  Simply Logical SWISH JavaScript
   [`lpn.js`](sphinx_prolog/_static/lpn.js)).
 * `sp_swish_hide_examples` (*optional*, default `False`) -- **globally**
   toggles visibility of the `/** <examples> ... */` block in SWISH code boxes.

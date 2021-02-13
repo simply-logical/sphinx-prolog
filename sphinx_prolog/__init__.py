@@ -2,10 +2,10 @@
 # Author: Kacper Sokol <k.sokol@bristol.ac.uk>
 # License: new BSD
 """
-A Sphinx extension implementing `infobox`, `exercise`, `solution` and `swish`
-directives used in the `online version <https://book.simply-logical.space/>`_
-of the Simply Logical book.
-This extension is compatible with and intended for Jupyter Book.
+A Sphinx extension implementing `pProlog` syntax highlighting and `infobox`,
+`exercise`, `solution` and `swish` directives used to author Prolog-infused
+interactive online resources.
+This extension is compatible with, and intended for, Jupyter Book.
 
 See `this tutorial <https://www.sphinx-doc.org/en/master/development/tutorials/todo.html>`_
 for more details on building custom directives.
@@ -24,7 +24,7 @@ extension was particularly useful for developing the `exercise` directive.
 
 import os
 
-VERSION = '0.4'
+VERSION = '0.4.post1'
 __version__ = VERSION
 
 _STATIC_PATH = os.path.join(os.path.dirname(__file__), '_static')
