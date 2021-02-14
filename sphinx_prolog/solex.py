@@ -10,6 +10,7 @@ import os
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
+from sphinx.addnodes import number_reference, pending_xref
 
 import sphinx_prolog
 
@@ -579,6 +580,92 @@ def set_solution_numfig_format(app, config):
     config.numfig_format = numfig_format
 
 
+def fix_solution_numrefs_pre(app, doctree):
+    """
+    TODO
+    attached to `doctree-read`
+    """
+    pre = 'sol2link:'
+    ind = 'sol2link:purge'
+
+    docname = doctree.attributes['source']
+    solution_formatter = app.config.numfig_format['solution']
+    counter = 0
+    temp = []
+    for node in doctree.traverse(pending_xref):
+        # we are only interested in numbered references
+        if node.attributes['reftype'] == 'numref':
+            # we only want solution references
+            if node.attributes['reftarget'].startswith('sol:'):
+                # create a link reference
+                node.attributes['classes'].append(
+                    '{}{}-{}'.format(pre, docname, counter))
+                counter += 1
+
+                # duplicate the node as an exercise
+                ex_node = node.deepcopy()
+                ex_ref = 'ex:{}'.format(node.attributes['reftarget'][4:])
+                ex_node.attributes['reftarget'] = ex_ref
+                ex_node.attributes['ids'].append(ind)
+
+                # if the reference formatter is not explicitly given
+                # if no custom formatter given, get the default solutoin formatter
+                if not ex_node.attributes['refexplicit']:
+                    assert len(ex_node.children) == 1
+                    assert len(ex_node.children[0].children) == 1
+                    ex_node.attributes['refexplicit'] = True
+                    sf = nodes.Text(solution_formatter)
+                    sf.parent = ex_node.children[0].children[0].parent
+                    ex_node.children[0].children = [sf]
+
+                # append this node for future retrieval
+                temp.append(ex_node)
+
+    for t in temp:
+        # the parent is set automatically
+        doctree += t
+
+
+def fix_solution_numrefs_post(app, doctree, docname):
+    """
+    TODO
+    attached to `doctree-resolved`
+    """
+    pre = 'sol2link:'
+    ind = 'sol2link:purge'
+
+    sub = {}
+    for node in doctree.traverse(number_reference):
+        if ind not in node.attributes['ids']:
+            continue
+
+        keys = [k for k in node.attributes['classes'] if k.startswith(pre)]
+        assert len(keys) == 1
+        key = keys[0]
+
+        assert len(node.children) == 1
+        sub[key] = node.children  # node.astext()
+
+        # necessary to safely remove self
+        node.attributes['ids'].remove(ind)
+        node.attributes['classes'].remove(key)
+        # purge
+        node.replace_self([])
+
+    for node in doctree.traverse(number_reference):
+        assert ind not in node.attributes['ids']
+
+        keys = [k for k in node.attributes['classes'] if k.startswith(pre)]
+        if not keys:
+            continue
+        assert len(keys) == 1
+        key = keys[0]
+
+        node.attributes['classes'].remove(key)
+        assert len(node.children) == 1
+        node.children = sub[key]
+
+
 #### Extension setup ##########################################################
 
 
@@ -641,5 +728,7 @@ def setup(app):
     # connect custom hooks to the Sphinx build process
     app.connect('config-inited', set_exercise_numfig_format)
     app.connect('config-inited', set_solution_numfig_format)
+    app.connect('doctree-read', fix_solution_numrefs_pre)
+    app.connect('doctree-resolved', fix_solution_numrefs_post)
 
     return {'version': sphinx_prolog.VERSION}
