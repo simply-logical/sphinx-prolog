@@ -449,24 +449,24 @@ class solution(nodes.Admonition, nodes.Element):
 
 
 def visit_solution_node(self, node):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     self.body.append(self.starttag(
         node, 'div', CLASS=('admonition solution')))
 
 
 def depart_solution_node(self, node):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     self.body.append('</div>\n')
 
 
 def visit_solution_node_(self, node):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     raise NotImplemented
     self.visit_admonition(node)
 
 
 def depart_solution_node_(self, node):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     raise NotImplemented
     self.depart_admonition(node)
 
@@ -476,7 +476,7 @@ class solution_title(nodes.title):
 
 
 def visit_solution_title_node(self, node):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     assert self.builder.name != 'singlehtml', (
         'This function is not suitable for singlehtml builds -- '
         'see the URL in the docstring.')
@@ -495,7 +495,7 @@ def visit_solution_title_node(self, node):
 
 
 def depart_solution_title_node(self, node):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     if (self.permalink_text and self.builder.add_permalinks
             and node.parent.hasattr('ids') and node.parent['ids']):
         self.add_permalink_ref(node.parent, 'Permalink to this solution')
@@ -515,17 +515,17 @@ def depart_solution_title_node(self, node):
 
 
 def visit_solution_title_node_(self, node):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     raise NotImplemented
 
 
 def depart_solution_title_node_(self, node):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     raise NotImplemented
 
 
 class Solution(Directive):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     required_arguments = 1
     optional_arguments = 0
     final_argument_whitespace = False
@@ -533,7 +533,7 @@ class Solution(Directive):
     option_spec = {}
 
     def run(self):
-        """See the coresponding exercise function."""
+        """See the corresponding exercise function."""
         env = self.state.document.settings.env
 
         label = self.arguments[0]
@@ -566,13 +566,13 @@ class Solution(Directive):
 
 
 def solution_title_getter(node):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     assert isinstance(node, solution)
     return 'solution'
 
 
 def set_solution_numfig_format(app, config):
-    """See the coresponding exercise function."""
+    """See the corresponding exercise function."""
     numfig_format = {'solution': 'Solution %s'}
 
     # override the default numfig format with values in the config file
@@ -582,14 +582,26 @@ def set_solution_numfig_format(app, config):
 
 def fix_solution_numrefs_pre(app, doctree):
     """
-    TODO
-    attached to `doctree-read`
-    """
-    pre = 'sol2link:'
-    ind = 'sol2link:purge'
+    Injects an (unresolved) exercise 'numref' node (`pending_xref`) for each
+    'numref' solution node at the end of `doctree` to generate a correct
+    sequential number for it.
 
+    These nodes are resolved by Sphinx with a correct number, which then gets
+    injected into the solution reference and removed -- these steps are
+    implemented in the `fix_solution_numrefs_post` function.
+    Both the solution reference and its corresponding phantom exercise
+    reference are assigned a unique class to allow their later matching.
+
+    (Attached to the `doctree-read` Sphinx event.)
+    """
+    # unique identifiers used to mark the affected reference nodes
+    pre = 'sol2link:'  # class prefix for generating unique identifiers
+    ind = '{}purge'.format(pre)  # id assigned to each phantom exercise ref
+
+    # get the document name (path) and the default solution numref formatter
     docname = doctree.attributes['source']
     solution_formatter = app.config.numfig_format['solution']
+
     counter = 0
     temp = []
     for node in doctree.traverse(pending_xref):
@@ -597,73 +609,91 @@ def fix_solution_numrefs_pre(app, doctree):
         if node.attributes['reftype'] == 'numref':
             # we only want solution references
             if node.attributes['reftarget'].startswith('sol:'):
-                # create a link reference
+                # mark this node with a unique identifier linking it with the
+                # phantom exercise node
                 node.attributes['classes'].append(
                     '{}{}-{}'.format(pre, docname, counter))
                 counter += 1
 
-                # duplicate the node as an exercise
+                # duplicate the node creating the phantom exercise reference
                 ex_node = node.deepcopy()
-                ex_ref = 'ex:{}'.format(node.attributes['reftarget'][4:])
-                ex_node.attributes['reftarget'] = ex_ref
-                ex_node.attributes['ids'].append(ind)
+                ex_node.attributes['reftarget'] = 'ex:{}'.format(
+                    node.attributes['reftarget'][4:])  # make into exercise ref
+                ex_node.attributes['ids'].append(ind)  # mark as a phantom node
 
-                # if the reference formatter is not explicitly given
-                # if no custom formatter given, get the default solutoin formatter
+                # if the reference formatter is not explicitly given, our
+                # phantom exercise numref formatter must be replaced with the
+                # default solution numref formatter
                 if not ex_node.attributes['refexplicit']:
-                    assert len(ex_node.children) == 1
-                    assert len(ex_node.children[0].children) == 1
+                    assert len(ex_node.children) == 1, 'Just formatter'
+                    assert len(ex_node.children[0].children) == 1, 'Just text'
+                    # purge the current formatter and inject a new one
+                    del ex_node.children[0].children[0]
+                    ex_node.children[0] += nodes.Text(solution_formatter)
+                    # enforce the custom formatter
                     ex_node.attributes['refexplicit'] = True
-                    sf = nodes.Text(solution_formatter)
-                    sf.parent = ex_node.children[0].children[0].parent
-                    ex_node.children[0].children = [sf]
 
-                # append this node for future retrieval
+                # store the phantom node in a temporary location...
                 temp.append(ex_node)
 
+    # ...before appending it at the end of the doctree for future retrieval
     for t in temp:
-        # the parent is set automatically
-        doctree += t
+        doctree += t  # the parent is (re-)set automatically
 
 
 def fix_solution_numrefs_post(app, doctree, docname):
     """
-    TODO
-    attached to `doctree-resolved`
-    """
-    pre = 'sol2link:'
-    ind = 'sol2link:purge'
+    Retrieves (resolved) phantom 'numref' nodes (`number_reference`) injected
+    by the `fix_solution_numrefs_pre` function and uses their text to fix
+    numbering of the linked solution references.
 
-    sub = {}
+    (Attached to the `doctree-resolved` Sphinx event.)
+    """
+    # unique identifiers used to retrieve the affected reference nodes
+    pre = 'sol2link:'  # class prefix for generating unique identifiers
+    ind = '{}purge'.format(pre)  # id assigned to each phantom exercise ref
+
+    # collect the information stored in phantom nodes and purge them
+    sub = {}  # substitution table for each affected solution reference
     for node in doctree.traverse(number_reference):
+        # we only retrieve phantom nodes injected in fix_solution_numrefs_pre
         if ind not in node.attributes['ids']:
             continue
 
+        # phantom nodes have a link to their corresponding solution ref node
         keys = [k for k in node.attributes['classes'] if k.startswith(pre)]
-        assert len(keys) == 1
+        assert len(keys) == 1, 'One unique identifier (link) expected'
         key = keys[0]
 
-        assert len(node.children) == 1
+        # memorise the correct reference numbering (pre-populated formatter)
+        assert len(node.children) == 1, 'Just formatted text (numref)'
         sub[key] = node.children  # node.astext()
 
-        # necessary to safely remove self
-        node.attributes['ids'].remove(ind)
-        node.attributes['classes'].remove(key)
-        # purge
+        # purge the phantom node
+        node.attributes['ids'].remove(ind)  # needed for safe node removal
+        node.attributes['classes'].remove(key)  # needed for safe node removal
         node.replace_self([])
 
+    # inject correct numbering to solution node
     for node in doctree.traverse(number_reference):
-        assert ind not in node.attributes['ids']
+        # there should not be any more phantom nodes
+        assert ind not in node.attributes['ids'], 'Unexpected phantom node'
 
+        # solution nodes have a link to their corresponding phantom node...
         keys = [k for k in node.attributes['classes'] if k.startswith(pre)]
+        # ...if there is no link, it must be a different numbered reference
         if not keys:
             continue
-        assert len(keys) == 1
+        assert len(keys) == 1, 'One unique identifier (link) expected'
         key = keys[0]
 
-        node.attributes['classes'].remove(key)
-        assert len(node.children) == 1
+        # substitute the solution reference text to give it the correct number
+        assert len(node.children) == 1, 'Just formatted text (numref)'
         node.children = sub[key]
+
+        # remove the link to the phantom node and the stored text node
+        node.attributes['classes'].remove(key)
+        del sub[key]
 
 
 #### Extension setup ##########################################################
