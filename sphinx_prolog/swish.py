@@ -186,7 +186,8 @@ def visit_swish_code_node(self, node):
         attributes['prolog-file'] = prolog_file
 
     # if the block is being inherited from, it needs a special class
-    if swish_label in env.sl_swish_inherited:
+    if (hasattr(env, 'sl_swish_inherited')
+            and swish_label in env.sl_swish_inherited):
         class_list.append('temp')
 
     # If either of the `source-text-start` or `source-text-end` attributes are
@@ -583,8 +584,15 @@ class SWISH(Directive):
 
         # hide examples locally
         hide_examples = options.get('hide-examples', None)
-        if hide_examples == '':
-            hide_examples = True
+        if isinstance(hide_examples, str):
+            if hide_examples == '':
+                hide_examples = True
+            elif hide_examples.lower() == 'false':
+                hide_examples = False
+            else:
+                raise RuntimeError('The *hide-examples* parameter placed in '
+                                   'the *{}* SWISH box must either be *true* '
+                                   'or *false.*'.format(code_filename_id))
         assert isinstance(hide_examples, bool) or hide_examples is None
         attributes['hide_examples'] = hide_examples
 
