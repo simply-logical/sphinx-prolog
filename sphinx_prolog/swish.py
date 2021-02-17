@@ -1042,7 +1042,11 @@ def assign_reference_title(app, document):
         if node_name.startswith('swish:'):
             refname = 'SWISH code box'
         elif node_name.startswith('swishq:'):
-            refname = 'SWISH query box'
+            assert 'inline' in node.attributes
+            if node.attributes['inline']:
+                refname = 'SWISH query listing'
+            else:
+                refname = 'SWISH query box'
         else:
             assert 0, 'SWISH box ids must either start with swish: or swishq:'
 
@@ -1129,6 +1133,7 @@ def visit_swish_query_node(self, node):
     lang = node.attributes.get('language')
     if inline:
         assert lang is None
+        assert 'source-id' not in attributes, 'Inline queries lack *source-id*'
         starttag = self.starttag(
             node, 'code', CLASS=('swish query'), **attributes)
         self.body.append(starttag)
@@ -1137,7 +1142,8 @@ def visit_swish_query_node(self, node):
         assert lang == 'Prolog', 'SWISH query blocks must be Prolog syntax'
         starttag = self.starttag(  # pre -> div # literal / literal-block
             node, 'div', suffix='',
-            CLASS='swish query highlight-{} notranslate'.format(lang))
+            CLASS='swish query highlight-{} notranslate'.format(lang),
+            **attributes)
         highlighted = self.highlighter.highlight_block(
             node.rawsource, lang, location=node)
         self.body.append(starttag + highlighted)
