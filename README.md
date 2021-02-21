@@ -241,14 +241,16 @@ An **inline** *[SWISH] query box* is included with the `swish-query` *role*:
 
 Each [SWISH] query box can be referenced with its name using the `ref`
 role, e.g., `` {ref}`swishq:1.2.3` ``, which produces *SWISH query box*
-hyper-link.
+hyper-link for display queries and *SWISH query listing* for inline queries.
 
 ### Configuration parameters ###
 
 The `swish` extension uses the following [Sphinx] configuration parameters:
 
-* `sp_code_directory` (**required**) -- defines the path to a directory holding
-  files with content ([SWI Prolog] code) of each [SWISH] code box; and
+* `sp_code_directory` (**required** when loading the box content from a file,
+  or using *source text start* or *source text start*) -- defines
+  the path to a directory holding files with content ([SWI Prolog] code) of
+  each [SWISH] code box; and
 * `sp_swish_url` -- specifies the URL of the [SWISH] execution server
   (`https://swish.swi-prolog.org/` by default, which is hard-coded in the
   Simply Logical SWISH JavaScript
