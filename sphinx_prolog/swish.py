@@ -456,18 +456,7 @@ class SWISH(Directive):
 
         # retrieve the path to the directory holding the code files
         sp_code_directory = env.config.sp_code_directory
-        if sp_code_directory is None:
-            raise RuntimeError('The sp_code_directory sphinx config value '
-                               'must be set.')
-        # localise the directory if given as an absolute path
-        if sp_code_directory.startswith('/'):
-            localised_directory = '.' + sp_code_directory
-        else:
-            localised_directory = sp_code_directory
-        # check whether the directory exists
-        if not os.path.exists(localised_directory):
-            raise RuntimeError('The sp_code_directory ({}) does not '
-                               'exist.'.format(localised_directory))
+        assert isinstance(sp_code_directory, str) or sp_code_directory is None
 
         # get the code file name for this particular swish box
         assert len(self.arguments) == 1, (
@@ -556,6 +545,8 @@ class SWISH(Directive):
         # extract `source-text-start` and memorise it
         source_start = options.get('source-text-start', None)
         if source_start is not None:
+            localised_directory = localise_code_directory(
+                sp_code_directory, '*source text start*')
             if not source_start.endswith('.pl'):
                 source_start += '.pl'
             source_start_path = os.path.join(localised_directory, source_start)
@@ -570,6 +561,8 @@ class SWISH(Directive):
         # extract `source-text-end` and memorise it
         source_end = options.get('source-text-end', None)
         if source_end is not None:
+            localised_directory = localise_code_directory(
+                sp_code_directory, '*source text end*')
             if not source_end.endswith('.pl'):
                 source_end += '.pl'
             source_end_path = os.path.join(localised_directory, source_end)
@@ -610,6 +603,8 @@ class SWISH(Directive):
             # file) and the code box
             self.memorise_code(code_filename_id, None, is_main_codeblock=True)
         else:
+            localised_directory = localise_code_directory(
+                sp_code_directory, 'SWISH box content')
             # compose the full path to the code file and ensure it exists
             path_localised = os.path.join(localised_directory, code_filename)
             # path_original = os.path.join(sp_code_directory, code_filename)
@@ -789,6 +784,26 @@ class SWISH(Directive):
                 'path': path_localised,
                 'signature': timestamp
             }
+
+
+def localise_code_directory(sp_code_directory, request_type=None):
+    """Localise the code directory path."""
+    if request_type is None:
+        request_type = 'SWISH box content'
+    if sp_code_directory is None:
+        raise RuntimeError('The sp_code_directory sphinx config value '
+                           'must be set when loading {} from a file.'.format(
+                               request_type))
+    # localise the directory if given as an absolute path
+    if sp_code_directory.startswith('/'):
+        localised_directory = '.' + sp_code_directory
+    else:
+        localised_directory = sp_code_directory
+    # check whether the directory exists
+    if not os.path.exists(localised_directory):
+        raise RuntimeError('The sp_code_directory ({}) does not '
+                           'exist.'.format(localised_directory))
+    return localised_directory
 
 
 def purge_swish_detect(app, env, docname):
