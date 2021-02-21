@@ -628,60 +628,42 @@ class SWISH(Directive):
         # compose a single Prolog file from inherit-id, source-text-start and
         # source-text-end parameters to be uploaded and sourced by SWISH
         if build_file:
-            code_collector = []
+            code_collector = {}
 
             # load the inherited files
             if inherit_id_collector:
                 assert 'inherit_id' in attributes
-                for iid in inherit_id_collector:
-                    iid_filename = '{}.pl'.format(iid[6:])
-                    iid_path = os.path.join(localised_directory, iid_filename)
-                    sphinx_prolog.file_exists(iid_path)
-                    # memorise the association between the document and file
-                    self.memorise_code(iid, iid_path)
-                    with open(iid_path, 'r') as f:
-                        iid_contents = f.read()
-                    # clean out the examples section
-                    iid_raw_content = strip_examples_block(iid_contents)
-                    # add the inherited contents
-                    code_collector.append(
-                        '/*This part is inherited from: {}*/'.format(iid))
-                    code_collector.append(iid_raw_content.strip())
-                    code_collector.append(
-                        '/*This is the end of inheritance.*/\n')
+                code_collector['inherit'] = inherit_id_collector
                 del attributes['inherit_id']
             assert 'inherit_id' not in attributes
 
             # load the source-text-start contents
             if 'source_text_start' in attributes:
-                code_collector.append('/*Begin ~source text start~*/')
-                code_collector.append(attributes['source_text_start'].strip())
-                code_collector.append('/*End ~source text start~*/\n')
+                code_collector['start'] = [
+                    '/*Begin ~source text start~*/',
+                    attributes['source_text_start'].strip(),
+                    '/*End ~source text start~*/\n'
+                ]
                 del attributes['source_text_start']
             assert 'source_text_start' not in attributes
 
             # load the code block contents
-            code_collector.append(contents)
+            code_collector['contents'] = contents
 
             # load the source-text-end contents
             if 'source_text_end' in attributes:
-                code_collector.append('/*Begin ~source text end~*/')
-                code_collector.append(attributes['source_text_end'].strip())
-                code_collector.append('/*End ~source text end~*/\n')
+                code_collector['end'] = [
+                    '\n/*Begin ~source text end~*/',
+                    attributes['source_text_end'].strip(),
+                    '/*End ~source text end~*/\n'
+                ]
                 del attributes['source_text_end']
             assert 'source_text_end' not in attributes
 
             # get a name for this Prolog file
             build_file_name = '{}{}'.format(
                 code_filename_id[6:], PROLOG_SUFFIX)
-
-            # compose the file and save it in the temp directory
-            temp_dir = os.path.join(env.app.confdir, PROLOG_TEMP_DIR)
-            if not os.path.exists(temp_dir):
-                os.makedirs(temp_dir)
-            temp_file = os.path.join(temp_dir, build_file_name)
-            with open(temp_file, 'w') as f:
-                f.write('\n'.join(code_collector))
+            code_collector['filename'] = build_file_name
 
             # get a request URL for this Prolog file
             sp_swish_book_url = env.config.sp_swish_book_url
@@ -694,6 +676,10 @@ class SWISH(Directive):
             prolog_temp_store = os.path.join(sp_swish_book_url, PROLOG_OUT_DIR)
             attributes['prolog_file'] = os.path.join(
                 prolog_temp_store, build_file_name)
+
+            # This file is built in the resolve_prolog_files function -- see
+            # its documentation for the explanation
+            attributes['pending_file'] = code_collector
 
             # strip the content of the block from examples if requested
             hide_examples_global = env.config.sp_swish_hide_examples
@@ -1455,6 +1441,91 @@ def check_sourceid_correctness(app, doctree, docname):
                                        'does not exist.'.format(iid))
 
 
+def resolve_prolog_files(app, doctree):
+    """
+    Builds the Prolog files required by the "build-file" SWISH code boxes and
+    places them in the temp folder.
+    It ensures that the inherited code blocks exist in the same document and
+    that the inheritance is not circular and up to date in case the user
+    has overridden a SWISH code box loaded from an external Prolog file.
+    The move_prolog_files function later transfers these files to the build
+    directory.
+    (Attached to the `doctree-read` Sphinx event.)
+    """
+    temp_dir = os.path.join(app.confdir, PROLOG_TEMP_DIR)  # env.app.confdir
+
+    # collect code blocks on this page to inherit from
+    inheritable = {}
+    for node in doctree.traverse(swish_code):
+        label = node.attributes.get('label', '')
+        assert label and label not in inheritable
+        inheritable[label] = node.astext()
+
+    # go through every swish code box
+    for node in doctree.traverse(swish_code):
+        # if there's no indication of loading an external file, skip the node
+        if ('prolog_file' not in node.attributes
+                or 'pending_file' not in node.attributes):
+            continue
+        assert ('prolog_file' in node.attributes
+                and 'pending_file' in node.attributes), 'Both must be present'
+
+        # get the label of this node
+        node_label = node.attributes.get('label', '')
+        assert node_label and node_label in inheritable
+
+        # collect all the pieces
+        code_chunks = node.attributes['pending_file']
+        assert isinstance(code_chunks, dict)
+        assert 'contents' in code_chunks, 'Block contents is required'
+        assert 'filename' in code_chunks, 'Block filename is required'
+        code_collector = []
+
+        # load the source-text-start contents
+        if 'start' in code_chunks:
+            code_collector += code_chunks['start']
+
+        # load the inherited code chunks
+        if 'inherit' in code_chunks:
+            # ensure no circular inheritance
+            if node_label in code_chunks['inherit']:
+                raise RuntimeError('The *{}* SWISH code block inherits '
+                                   'itself.'.format(node_label))
+            # pull inherited code blocks
+            for iid in code_chunks['inherit']:
+                # ensure within-document inheritance
+                if iid not in inheritable:
+                    raise RuntimeError(
+                        'The code block *{}* inherits *{}*, which is not '
+                        'available in the same document. '
+                        'Inheritance only works within a scope of a single '
+                        'document.'.format(node_label, iid)
+                    )
+                # clean out the examples section
+                iid_raw_content = strip_examples_block(inheritable[iid])
+                # add the inherited contents
+                code_collector.append(
+                    '/*This part is inherited from: {}*/'.format(iid))
+                code_collector.append(iid_raw_content.strip())
+                code_collector.append(
+                    '/*This is the end of inheritance.*/\n')
+
+        # load the code block contents
+        code_collector.append(code_chunks['contents'])
+
+        # load the source-text-end contents
+        if 'end' in code_chunks:
+            code_collector += code_chunks['end']
+
+        # compose the file and save it in the temp directory
+        build_file_name = code_chunks['filename']
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        temp_file = os.path.join(temp_dir, build_file_name)
+        with open(temp_file, 'w') as f:
+            f.write('\n'.join(code_collector))
+
+
 def move_prolog_files(app, exc):
     """
     Copies Prolog files composed via the `build-file` parameter to the build
@@ -1555,6 +1626,7 @@ def setup(app):
     app.connect('env-purge-doc', purge_swish_query)
     app.connect('env-merge-info', merge_swish_query)
     app.connect('doctree-resolved', check_sourceid_correctness)
+    app.connect('doctree-read', resolve_prolog_files)
     app.connect('build-finished', move_prolog_files)
 
     return {'version': sphinx_prolog.VERSION}
