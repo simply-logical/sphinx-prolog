@@ -16,8 +16,8 @@ from docutils.parsers.rst import Directive, directives
 
 import sphinx_prolog
 
-STATIC_CSS_FILES = ['sphinx-prolog.css', 'lpn.css', 'jquery-ui.min.css']
-STATIC_JS_FILES = ['lpn.js', 'jquery-ui.min.js']
+STATIC_CSS_FILES = ['jquery-ui.min.css', 'lpn.css', 'sphinx-prolog.css']
+STATIC_JS_FILES = ['jquery.js', 'jquery-ui.min.js', 'lpn.js']
 STATIC_FILES = (STATIC_CSS_FILES + STATIC_JS_FILES
                 + ['lpn/lpn-run.png', 'lpn/lpn-close.png'])
 

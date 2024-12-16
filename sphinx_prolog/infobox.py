@@ -50,7 +50,7 @@ def depart_infobox_title_node(self, node):
 
     Overrides `Sphinx's HTML5 generator <https://github.com/sphinx-doc/sphinx/blob/68cc0f7e94f360a2c62ebcb761f8096e04ebf07f/sphinx/writers/html5.py#L362>`_.
     """
-    if (self.permalink_text and self.builder.add_permalinks
+    if (self.config.html_permalinks and self.builder.add_permalinks
             and node.parent.hasattr('ids') and node.parent['ids']):
         self.add_permalink_ref(node.parent, 'Permalink to this infobox')
     else:
