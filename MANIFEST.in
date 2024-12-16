@@ -1,6 +1,7 @@
 include README.md
 include LICENCE
 include sphinx_prolog/_static/sphinx-prolog.css
+include sphinx_prolog/_static/jquery.js
 include sphinx_prolog/_static/jquery-ui.min.css
 include sphinx_prolog/_static/jquery-ui.min.js
 include sphinx_prolog/_static/lpn.css
