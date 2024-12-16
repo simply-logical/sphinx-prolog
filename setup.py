@@ -19,7 +19,7 @@ LICENCE = 'new BSD'
 VERSION = sphinx_prolog.__version__
 URL = 'https://github.com/simply-logical/{}'.format(DISTNAME)
 DOWNLOAD_URL = 'https://pypi.org/project/{}/#files'.format(DISTNAME)
-PYTHON_REQUIRES = '~=3.5'  # Python 3.5 and up but not yet Python 4
+PYTHON_REQUIRES = '~=3.9'  # Python 3.9 and up but not yet Python 4
 INSTALL_REQUIRES = ['docutils', 'pygments', 'sphinx>=5']
 PACKAGES = find_packages(exclude=['*.tests', '*.tests.*', 'tests.*', 'tests'])
 INCLUDE_PACKAGE_DATA = True
